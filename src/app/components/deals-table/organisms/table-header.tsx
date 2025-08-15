@@ -9,7 +9,7 @@
 
 import type React from "react";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "../atoms/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,7 +17,7 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "../molecules/dropdown";
 import {
   ArrowUpIcon,
   ArrowDownIcon,

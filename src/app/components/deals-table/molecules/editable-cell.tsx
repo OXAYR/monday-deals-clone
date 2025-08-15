@@ -8,9 +8,7 @@
 "use client";
 
 import type React from "react";
-
 import { useState, useRef, useEffect } from "react";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 interface EditableCellProps {
@@ -75,13 +73,18 @@ export function EditableCell({
 
   if (isEditing) {
     return (
-      <Input
+      <input
         ref={inputRef}
         value={tempValue}
         onChange={(e) => setTempValue(e.target.value)}
         onBlur={handleSave}
         onKeyDown={handleKeyDown}
-        className="h-8 text-sm"
+        className={cn(
+          "h-8 px-2 text-sm border border-gray-200 dark:border-gray-700 rounded",
+          "bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100",
+          "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+          "placeholder:text-gray-500 dark:placeholder:text-gray-400"
+        )}
         placeholder={placeholder}
         type={type === "number" || type === "currency" ? "number" : "text"}
       />
@@ -91,7 +94,7 @@ export function EditableCell({
   return (
     <div
       className={cn(
-        "cursor-pointer hover:bg-muted/50 p-2 rounded transition-colors",
+        "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded transition-colors",
         "min-h-[2rem] flex items-center",
         type === "currency" && "font-medium",
         className

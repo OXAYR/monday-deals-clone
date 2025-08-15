@@ -8,7 +8,6 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { ProgressBar } from "../atoms/progress-bar";
 
 interface ProbabilityCellProps {
@@ -34,26 +33,24 @@ export function ProbabilityCell({ value, onSave }: ProbabilityCellProps) {
           max="100"
           value={tempValue}
           onChange={(e) => setTempValue(Number(e.target.value))}
-          className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+          className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
         />
         <span className="text-xs w-10 text-center font-medium">
           {tempValue}%
         </span>
-        <Button
-          size="sm"
-          variant="ghost"
+        <button
           onClick={handleSave}
-          className="h-6 px-2 text-green-600"
+          className="h-6 px-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors"
         >
           ✓
-        </Button>
+        </button>
       </div>
     );
   }
 
   return (
     <div
-      className="cursor-pointer hover:bg-muted/50 p-2 rounded transition-colors"
+      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded transition-colors"
       onClick={() => setIsEditing(true)}
     >
       <ProgressBar value={value} />

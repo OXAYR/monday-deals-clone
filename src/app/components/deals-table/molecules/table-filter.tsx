@@ -7,15 +7,15 @@
 
 "use client";
 
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Input } from "../atoms/input";
+import { Button } from "../atoms/button";
+import { Badge } from "../atoms/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "./dropdown";
 import { FilterIcon, XIcon, ChevronDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
