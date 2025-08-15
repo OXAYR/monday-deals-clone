@@ -25,14 +25,8 @@ import {
   ChevronRightIcon,
   ArrowUpIcon,
   ArrowDownIcon,
-  MessageSquareIcon,
-  FileTextIcon,
-  ClockIcon,
-  UserIcon,
   CopyIcon,
   TrashIcon,
-  FilterIcon,
-  SettingsIcon,
   SearchIcon,
   PlusIcon,
 } from "lucide-react";
@@ -41,14 +35,14 @@ import { format } from "date-fns";
 // Import atomic design components
 import { Button } from "./deals-table/atoms/button";
 import { Checkbox } from "./deals-table/atoms/checkbox";
-import { Input } from "./deals-table/atoms/input";
+
 import { Badge } from "./deals-table/atoms/badge";
 import { ThemeToggle } from "./deals-table/atoms/theme-toggle";
 import { Select } from "./deals-table/molecules/select";
 import { ThemeProvider } from "./deals-table/hooks/use-theme";
 import { NewDealForm } from "./deals-table/molecules/new-deal-form";
 import { TableFilters } from "./deals-table/molecules/table-filter";
-import { TableRow } from "./deals-table/organisms/table-row";
+
 import { DealsTableTopBar } from "./deals-table/organisms/deals-table-top-bar";
 import { DealsTableBody } from "./deals-table/organisms/deals-table-body";
 import ExpandedRowDetails from "./deals-table/organisms/expanded-row-details";
@@ -60,12 +54,7 @@ import type {
   SortConfig,
   FilterConfig,
 } from "./deals-table/types";
-import {
-  DEFAULT_COLUMNS,
-  SAMPLE_DEALS,
-  stageOptions,
-  priorityOptions,
-} from "./deals-table/types/static-data";
+import { DEFAULT_COLUMNS, SAMPLE_DEALS } from "./deals-table/types/static-data";
 import {
   filterDeals,
   sortDeals,

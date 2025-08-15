@@ -3,8 +3,6 @@
 import React from "react";
 import { Button } from "../atoms/button";
 import { TrashIcon } from "lucide-react";
-import { Checkbox } from "../atoms/checkbox";
-import { Badge } from "../atoms/badge";
 
 export function TableRow({
   deal,
