@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "./dropdown";
 import { FilterIcon, XIcon, ChevronDownIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "../../../lib/utils";
 
 interface FilterConfig {
   stages: string[];

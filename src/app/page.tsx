@@ -1,6 +1,6 @@
 /** @format */
 
-import { DealsTable } from "@/components/deals-table";
+import { DealsTable } from "./components/deals-table";
 
 export default function Home() {
   return (

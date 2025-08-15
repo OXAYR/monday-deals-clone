@@ -6,7 +6,7 @@
  * @format
  */
 
-import { cn } from "@/lib/utils";
+import { cn } from "../../../lib/utils";
 
 interface UserAvatarProps {
   name: string;

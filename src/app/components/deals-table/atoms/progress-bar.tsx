@@ -5,7 +5,7 @@
  * @format
  */
 
-import { cn } from "@/lib/utils";
+import { cn } from "../../../lib/utils";
 
 interface ProgressBarProps {
   value: number;
