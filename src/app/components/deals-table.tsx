@@ -46,6 +46,7 @@ import { Badge } from "./deals-table/atoms/badge";
 import { ThemeToggle } from "./deals-table/atoms/theme-toggle";
 import { Select } from "./deals-table/molecules/select";
 import { ThemeProvider } from "./deals-table/hooks/use-theme";
+import { NewDealForm } from "./deals-table/molecules/new-deal-form";
 
 // Import types
 import type {
@@ -84,6 +85,63 @@ function DealsTableCore() {
   const [columns, setColumns] = useState<ColumnConfig[]>(DEFAULT_COLUMNS);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [showColumnSettings, setShowColumnSettings] = useState(false);
+  const [showNewDealModal, setShowNewDealModal] = useState(false);
+
+  const uniqueOwners = useMemo(
+    () => [...new Set(deals.map((deal) => deal.owner.name))],
+    [deals]
+  );
+  const uniqueSources = useMemo(
+    () => [...new Set(deals.map((deal) => deal.source))],
+    [deals]
+  );
+
+  const handleCreateDeal = useCallback((dealData: Partial<Deal>) => {
+    const newDeal: Deal = {
+      id: Date.now().toString(),
+      name: dealData.name || "",
+      stage: dealData.stage || "New",
+      owner: dealData.owner || { name: "Current User", initials: "CU" },
+      company: dealData.company || "",
+      amount: dealData.amount || "$0",
+      probability: dealData.probability || 50,
+      closeDate: dealData.closeDate || new Date().toISOString().split("T")[0],
+      lastActivity: new Date().toISOString().split("T")[0],
+      priority: dealData.priority || "Medium",
+      source: dealData.source || "Direct",
+      tags: dealData.tags || [],
+      description: dealData.description,
+      activities: [],
+      files: [],
+    };
+
+    setDeals((prev) => [newDeal, ...prev]);
+    setShowNewDealModal(false);
+  }, []);
+
+  const handleBulkDelete = useCallback(() => {
+    setDeals((prev) => prev.filter((deal) => !selectedRows.has(deal.id)));
+    setSelectedRows(new Set());
+  }, [selectedRows]);
+
+  const handleBulkDuplicate = useCallback(() => {
+    const dealsToDuplicate = deals.filter((deal) => selectedRows.has(deal.id));
+    const duplicatedDeals = dealsToDuplicate.map((deal) => ({
+      ...deal,
+      id: `${deal.id}-copy-${Date.now()}`,
+      name: `${deal.name} (Copy)`,
+    }));
+    setDeals((prev) => [...duplicatedDeals, ...prev]);
+    setSelectedRows(new Set());
+  }, [deals, selectedRows]);
+
+  const toggleColumnVisibility = useCallback((columnKey: string) => {
+    setColumns((prev) =>
+      prev.map((col) =>
+        col.key === columnKey ? { ...col, visible: !col.visible } : col
+      )
+    );
+  }, []);
 
   const filteredAndSortedDeals = useMemo(() => {
     const filtered = deals.filter((deal) => {
@@ -301,6 +359,22 @@ function DealsTableCore() {
     },
     []
   );
+
+  const stageOptions = [
+    { value: "New", label: "New", color: "#64748b" },
+    { value: "Qualified", label: "Qualified", color: "#3b82f6" },
+    { value: "Proposal", label: "Proposal", color: "#f59e0b" },
+    { value: "Negotiation", label: "Negotiation", color: "#ef4444" },
+    { value: "Won", label: "Won", color: "#10b981" },
+    { value: "Lost", label: "Lost", color: "#6b7280" },
+  ];
+
+  const priorityOptions = [
+    { value: "Low", label: "Low", color: "#10b981" },
+    { value: "Medium", label: "Medium", color: "#f59e0b" },
+    { value: "High", label: "High", color: "#ef4444" },
+    { value: "Critical", label: "Critical", color: "#dc2626" },
+  ];
 
   const renderCell = useCallback(
     (deal: Deal, column: ColumnConfig) => {
@@ -631,12 +705,236 @@ function DealsTableCore() {
 
             <ThemeToggle />
 
-            <Button variant="default" size="sm">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setShowNewDealModal(true)}
+            >
               <PlusIcon className="h-4 w-4 mr-2" />
               New Deal
             </Button>
           </div>
         </div>
+
+        {showFilters && (
+          <div className="border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  Stage
+                </label>
+                <Select
+                  value=""
+                  placeholder="Select stages..."
+                  options={stageOptions}
+                  onValueChange={(value) => {
+                    setFilters((prev) => ({
+                      ...prev,
+                      stages: prev.stages.includes(value)
+                        ? prev.stages.filter((s) => s !== value)
+                        : [...prev.stages, value],
+                    }));
+                  }}
+                />
+                {filters.stages.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {filters.stages.map((stage) => (
+                      <Badge
+                        key={stage}
+                        variant="secondary"
+                        size="sm"
+                        className="cursor-pointer"
+                        onClick={() =>
+                          setFilters((prev) => ({
+                            ...prev,
+                            stages: prev.stages.filter((s) => s !== stage),
+                          }))
+                        }
+                      >
+                        {stage} ×
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  Priority
+                </label>
+                <Select
+                  value=""
+                  placeholder="Select priorities..."
+                  options={priorityOptions}
+                  onValueChange={(value) => {
+                    setFilters((prev) => ({
+                      ...prev,
+                      priorities: prev.priorities.includes(value)
+                        ? prev.priorities.filter((p) => p !== value)
+                        : [...prev.priorities, value],
+                    }));
+                  }}
+                />
+                {filters.priorities.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {filters.priorities.map((priority) => (
+                      <Badge
+                        key={priority}
+                        variant="secondary"
+                        size="sm"
+                        className="cursor-pointer"
+                        onClick={() =>
+                          setFilters((prev) => ({
+                            ...prev,
+                            priorities: prev.priorities.filter(
+                              (p) => p !== priority
+                            ),
+                          }))
+                        }
+                      >
+                        {priority} ×
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  Owner
+                </label>
+                <Select
+                  value=""
+                  placeholder="Select owners..."
+                  options={uniqueOwners.map((owner) => ({
+                    value: owner,
+                    label: owner,
+                  }))}
+                  onValueChange={(value) => {
+                    setFilters((prev) => ({
+                      ...prev,
+                      owners: prev.owners.includes(value)
+                        ? prev.owners.filter((o) => o !== value)
+                        : [...prev.owners, value],
+                    }));
+                  }}
+                />
+                {filters.owners.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {filters.owners.map((owner) => (
+                      <Badge
+                        key={owner}
+                        variant="secondary"
+                        size="sm"
+                        className="cursor-pointer"
+                        onClick={() =>
+                          setFilters((prev) => ({
+                            ...prev,
+                            owners: prev.owners.filter((o) => o !== owner),
+                          }))
+                        }
+                      >
+                        {owner} ×
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  Amount Range
+                </label>
+                <div className="space-y-2">
+                  <Input
+                    type="number"
+                    placeholder="Min amount"
+                    value={filters.amountRange.min}
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        amountRange: {
+                          ...prev.amountRange,
+                          min: Number(e.target.value) || 0,
+                        },
+                      }))
+                    }
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Max amount"
+                    value={filters.amountRange.max}
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        amountRange: {
+                          ...prev.amountRange,
+                          max: Number(e.target.value) || 200000,
+                        },
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+              <div className="text-sm text-slate-600 dark:text-slate-400">
+                {filteredAndSortedDeals.length} of {deals.length} deals shown
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setFilters({
+                    stages: [],
+                    priorities: [],
+                    owners: [],
+                    sources: [],
+                    amountRange: { min: 0, max: 200000 },
+                    searchTerm: "",
+                  });
+                }}
+              >
+                Clear All Filters
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {showColumnSettings && (
+          <div className="border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {columns
+                .filter((col) => col.key !== "expand" && col.key !== "select")
+                .map((column) => (
+                  <label
+                    key={column.key}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <Checkbox
+                      checked={column.visible}
+                      onCheckedChange={() => toggleColumnVisibility(column.key)}
+                    />
+                    <span className="text-sm text-slate-700 dark:text-slate-300">
+                      {column.label}
+                    </span>
+                  </label>
+                ))}
+            </div>
+            <div className="flex justify-end mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setColumns(DEFAULT_COLUMNS);
+                }}
+              >
+                Reset to Default
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {selectedRows.size > 0 && (
@@ -661,7 +959,7 @@ function DealsTableCore() {
               </Badge>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={handleBulkDuplicate}>
                 <CopyIcon className="h-4 w-4 mr-2" />
                 Duplicate
               </Button>
@@ -672,10 +970,15 @@ function DealsTableCore() {
                   selectedRows.forEach((dealId) => {
                     updateDealField(dealId, "stage", value);
                   });
+                  setSelectedRows(new Set());
                 }}
                 className="w-32"
               />
-              <Button variant="destructive" size="sm">
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleBulkDelete}
+              >
                 <TrashIcon className="h-4 w-4 mr-2" />
                 Delete
               </Button>
@@ -740,14 +1043,14 @@ function DealsTableCore() {
                 <React.Fragment key={deal.id}>
                   <tr
                     className={`
-                      hover:bg-slate-50 dark:hover:bg-slate-800/50 
-                      transition-all duration-150 cursor-pointer
-                      ${
-                        selectedRows.has(deal.id)
-                          ? "bg-slate-100 dark:bg-slate-800 border-l-4 border-l-slate-500 dark:border-l-slate-400"
-                          : ""
-                      }
-                    `}
+                        hover:bg-slate-50 dark:hover:bg-slate-800/50 
+                        transition-all duration-150 cursor-pointer
+                        ${
+                          selectedRows.has(deal.id)
+                            ? "bg-slate-100 dark:bg-slate-800 border-l-4 border-l-slate-500 dark:border-l-slate-400"
+                            : ""
+                        }
+                      `}
                     onClick={(e) => handleRowSelection(deal.id, rowIndex, e)}
                   >
                     {visibleColumns.map((column) => (
@@ -791,7 +1094,12 @@ function DealsTableCore() {
                   ? "Try adjusting your search or filters to find what you're looking for."
                   : "Get started by creating your first deal."}
               </p>
-              <Button variant="default" size="sm" className="mt-4">
+              <Button
+                variant="default"
+                size="sm"
+                className="mt-4"
+                onClick={() => setShowNewDealModal(true)}
+              >
                 <PlusIcon className="h-4 w-4 mr-2" />
                 Create Deal
               </Button>
@@ -852,6 +1160,24 @@ function DealsTableCore() {
           </div>
         </div>
       </div>
+
+      {showNewDealModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+              <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+                Create New Deal
+              </h2>
+            </div>
+            <div className="p-6">
+              <NewDealForm
+                onSubmit={handleCreateDeal}
+                onCancel={() => setShowNewDealModal(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

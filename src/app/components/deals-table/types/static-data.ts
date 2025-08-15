@@ -1,8 +1,15 @@
-/** @format */
+/**
+ * Static data for Deals Table
+ * Contains default columns, sample deals, and select options for stages and priorities.
+ *
+ * @format
+ */
 
-// Static data for Deals Table
 import type { Deal, ColumnConfig } from "./index";
 
+/**
+ * Default column configuration for the deals table.
+ */
 export const DEFAULT_COLUMNS: ColumnConfig[] = [
   {
     key: "expand",
@@ -102,6 +109,9 @@ export const DEFAULT_COLUMNS: ColumnConfig[] = [
   },
 ];
 
+/**
+ * Sample deals for demonstration and development.
+ */
 export const SAMPLE_DEALS: Deal[] = [
   {
     id: "1",
@@ -288,6 +298,9 @@ export const SAMPLE_DEALS: Deal[] = [
   },
 ];
 
+/**
+ * Options for deal stages, used in select dropdowns.
+ */
 export const stageOptions = [
   { value: "New", label: "New", color: "#64748b" },
   { value: "Qualified", label: "Qualified", color: "#3b82f6" },
@@ -297,6 +310,9 @@ export const stageOptions = [
   { value: "Lost", label: "Lost", color: "#6b7280" },
 ];
 
+/**
+ * Options for deal priorities, used in select dropdowns.
+ */
 export const priorityOptions = [
   { value: "Low", label: "Low", color: "#10b981" },
   { value: "Medium", label: "Medium", color: "#f59e0b" },
