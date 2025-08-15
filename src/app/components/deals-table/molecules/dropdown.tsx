@@ -1,9 +1,4 @@
-/**
- * Pure Tailwind CSS Dropdown Component
- * Replaces shadcn DropdownMenu with custom implementation
- *
- * @format
- */
+/** @format */
 
 "use client";
 

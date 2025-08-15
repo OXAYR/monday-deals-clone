@@ -1,10 +1,4 @@
-/**
- * User Avatar Atom
- * Displays user avatar with fallback initials
- * Pure Tailwind CSS implementation without shadcn dependencies
- *
- * @format
- */
+/** @format */
 
 import { cn } from "../../../lib/utils";
 

@@ -2,23 +2,6 @@
 
 "use client";
 
-/**
- * Professional Monday.com-style Deals Table
- *
- * A comprehensive CRM deals management interface built with:
- * - Atomic Design Principles (Atoms, Molecules, Organisms)
- * - Dark Mode Support with System Preference Detection
- * - Professional Developer Color Schemes
- * - Responsive Design with Mobile-First Approach
- * - Advanced Features: Sorting, Filtering, Bulk Actions, Expandable Rows
- *
- * Architecture:
- * - TypeScript for type safety and developer experience
- * - Custom hooks for state management and theme handling
- * - Modular component structure for maintainability
- * - Performance optimized with React.memo and useCallback
- */
-
 import React, { useState, useCallback, useMemo } from "react";
 import {
   ChevronDownIcon,

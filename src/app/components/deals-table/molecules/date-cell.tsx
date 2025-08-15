@@ -1,11 +1,4 @@
-/**
- * Date Cell Molecule
- * Date picker for close dates and activity dates
- * Pure Tailwind CSS implementation without shadcn dependencies
- *
- * @format
- */
-
+\
 "use client";
 
 import { useState } from "react";
