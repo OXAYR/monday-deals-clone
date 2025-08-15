@@ -47,6 +47,11 @@ import { ThemeToggle } from "./deals-table/atoms/theme-toggle";
 import { Select } from "./deals-table/molecules/select";
 import { ThemeProvider } from "./deals-table/hooks/use-theme";
 import { NewDealForm } from "./deals-table/molecules/new-deal-form";
+import { TableFilters } from "./deals-table/molecules/table-filter";
+import { TableRow } from "./deals-table/organisms/table-row";
+import { DealsTableTopBar } from "./deals-table/organisms/deals-table-top-bar";
+import { DealsTableBody } from "./deals-table/organisms/deals-table-body";
+import ExpandedRowDetails from "./deals-table/organisms/expanded-row-details";
 
 // Import types
 import type {
@@ -61,6 +66,12 @@ import {
   stageOptions,
   priorityOptions,
 } from "./deals-table/types/static-data";
+import {
+  filterDeals,
+  sortDeals,
+  calculateTotals,
+  getUniqueValues,
+} from "./deals-table/services/deal-table.service";
 
 /**
  * Main Deals Table Component
@@ -86,14 +97,26 @@ function DealsTableCore() {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [showColumnSettings, setShowColumnSettings] = useState(false);
   const [showNewDealModal, setShowNewDealModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [rowDeleteConfirm, setRowDeleteConfirm] = useState<string | null>(null);
 
-  const uniqueOwners = useMemo(
-    () => [...new Set(deals.map((deal) => deal.owner.name))],
-    [deals]
+  // Unique values for filters
+  const uniqueValues = useMemo(() => getUniqueValues(deals), [deals]);
+
+  // Filtering and sorting using service
+  const filteredDeals = useMemo(
+    () => filterDeals(deals, filters),
+    [deals, filters]
   );
-  const uniqueSources = useMemo(
-    () => [...new Set(deals.map((deal) => deal.source))],
-    [deals]
+  const filteredAndSortedDeals = useMemo(
+    () => sortDeals(filteredDeals, sortConfigs),
+    [filteredDeals, sortConfigs]
+  );
+
+  // Totals using service
+  const totalsData = useMemo(
+    () => calculateTotals(filteredAndSortedDeals),
+    [filteredAndSortedDeals]
   );
 
   const handleCreateDeal = useCallback((dealData: Partial<Deal>) => {
@@ -143,87 +166,25 @@ function DealsTableCore() {
     );
   }, []);
 
-  const filteredAndSortedDeals = useMemo(() => {
-    const filtered = deals.filter((deal) => {
-      // Search term filter with improved matching
-      if (filters.searchTerm) {
-        const searchLower = filters.searchTerm.toLowerCase();
-        const matchesSearch =
-          deal.name.toLowerCase().includes(searchLower) ||
-          deal.company.toLowerCase().includes(searchLower) ||
-          deal.owner.name.toLowerCase().includes(searchLower) ||
-          deal.tags.some((tag) => tag.toLowerCase().includes(searchLower));
-        if (!matchesSearch) return false;
-      }
-
-      // Multi-criteria filtering
-      if (filters.stages.length > 0 && !filters.stages.includes(deal.stage))
-        return false;
-      if (
-        filters.priorities.length > 0 &&
-        !filters.priorities.includes(deal.priority)
-      )
-        return false;
-      if (
-        filters.owners.length > 0 &&
-        !filters.owners.includes(deal.owner.name)
-      )
-        return false;
-      if (filters.sources.length > 0 && !filters.sources.includes(deal.source))
-        return false;
-
-      // Amount range filtering
-      const amount = Number.parseFloat(deal.amount.replace(/[$,]/g, ""));
-      if (amount < filters.amountRange.min || amount > filters.amountRange.max)
-        return false;
-
-      return true;
-    });
-
-    // Multi-level sorting implementation
-    if (sortConfigs.length > 0) {
-      filtered.sort((a, b) => {
-        for (const config of sortConfigs) {
-          let aVal = a[config.key];
-          let bVal = b[config.key];
-
-          // Handle nested owner object
-          if (config.key === "owner") {
-            aVal = (a.owner as any).name;
-            bVal = (b.owner as any).name;
-          }
-
-          // Handle amount parsing for numerical comparison
-          if (config.key === "amount") {
-            aVal = Number.parseFloat((aVal as string).replace(/[$,]/g, ""));
-            bVal = Number.parseFloat((bVal as string).replace(/[$,]/g, ""));
-          }
-
-          // Date comparison
-          if (config.key === "closeDate") {
-            aVal = new Date(aVal as string).getTime();
-            bVal = new Date(bVal as string).getTime();
-          }
-
-          // String comparison (case-insensitive)
-          if (typeof aVal === "string") {
-            aVal = aVal.toLowerCase();
-            bVal = (bVal as string).toLowerCase();
-          }
-
-          if (aVal < bVal) return config.direction === "asc" ? -1 : 1;
-          if (aVal > bVal) return config.direction === "asc" ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-
-    return filtered;
-  }, [deals, sortConfigs, filters]);
-
   const visibleColumns = useMemo(
     () => columns.filter((col) => col.visible),
     [columns]
+  );
+
+  // Add an Actions column to the visibleColumns array for rendering
+  const visibleColumnsWithActions = useMemo(
+    () => [
+      ...visibleColumns,
+      {
+        key: "actions",
+        label: "Actions",
+        visible: true,
+        width: 80,
+        minWidth: 60,
+        resizable: false,
+      },
+    ],
+    [visibleColumns]
   );
 
   const handleSort = useCallback((key: keyof Deal, event: React.MouseEvent) => {
@@ -517,431 +478,216 @@ function DealsTableCore() {
     [selectedRows, expandedRows, updateDealField, toggleRowExpansion]
   );
 
-  const ExpandedRowDetails = React.memo(({ deal }: { deal: Deal }) => {
-    return (
-      <div className="bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700">
-        <div className="p-6 border-l-4 border-l-slate-500 dark:border-l-slate-400">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Deal Details Section */}
-            <div className="space-y-4">
-              <h4 className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <FileTextIcon className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-                Deal Details
-              </h4>
-              {deal.description && (
-                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                  {deal.description}
-                </p>
-              )}
-              {deal.contact && (
-                <div className="space-y-3 p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-                  <div className="flex items-center gap-2">
-                    <UserIcon className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                    <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                      {deal.contact.name}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <MessageSquareIcon className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                    <span className="text-sm text-slate-600 dark:text-slate-400">
-                      {deal.contact.email}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <ClockIcon className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                    <span className="text-sm text-slate-600 dark:text-slate-400">
-                      {deal.contact.phone}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Activity Timeline Section */}
-            <div className="space-y-4">
-              <h4 className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <ClockIcon className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-                Recent Activity
-              </h4>
-              <div className="space-y-3">
-                {deal.activities?.slice(0, 3).map((activity, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-start gap-3 p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700"
-                  >
-                    <div className="flex-shrink-0 w-8 h-8 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center">
-                      <MessageSquareIcon className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                        {activity.type}
-                      </p>
-                      <p className="text-sm text-slate-600 dark:text-slate-400 truncate">
-                        {activity.description}
-                      </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
-                        {format(new Date(activity.date), "MMM d, yyyy")}
-                      </p>
-                    </div>
-                  </div>
-                )) || (
-                  <p className="text-sm text-slate-500 dark:text-slate-400 italic">
-                    No recent activity
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Files Section */}
-            <div className="space-y-4">
-              <h4 className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <FileTextIcon className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-                Files ({deal.files?.length || 0})
-              </h4>
-              <div className="space-y-2">
-                {deal.files?.map((file, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center gap-3 p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 transition-colors"
-                  >
-                    <FileTextIcon className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                    <span className="text-sm text-slate-900 dark:text-slate-100 flex-1 truncate">
-                      {file.name}
-                    </span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400 flex-shrink-0">
-                      {file.size}
-                    </span>
-                  </div>
-                )) || (
-                  <p className="text-sm text-slate-500 dark:text-slate-400 italic">
-                    No files attached
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  });
-
-  const totalsData = useMemo(() => {
-    const deals = filteredAndSortedDeals;
-    const totalValue = deals.reduce(
-      (sum, deal) => sum + Number.parseFloat(deal.amount.replace(/[$,]/g, "")),
-      0
-    );
-    const weightedValue = deals.reduce((sum, deal) => {
-      const amount = Number.parseFloat(deal.amount.replace(/[$,]/g, ""));
-      return sum + (amount * deal.probability) / 100;
-    }, 0);
-    const avgProbability =
-      deals.length > 0
-        ? deals.reduce((sum, deal) => sum + deal.probability, 0) / deals.length
-        : 0;
-
-    return {
-      totalDeals: deals.length,
-      totalValue,
-      weightedValue,
-      avgProbability,
-      wonDeals: deals.filter((deal) => deal.stage === "Won").length,
-      lostDeals: deals.filter((deal) => deal.stage === "Lost").length,
-    };
-  }, [filteredAndSortedDeals]);
-
   return (
-    <div className="w-full h-screen bg-slate-50 dark:bg-slate-950 flex flex-col transition-colors duration-200">
-      <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-6 sm:px-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
-              Deals Pipeline
-            </h1>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
-              {totalsData.totalDeals} deals • {selectedRows.size} selected • $
-              {totalsData.totalValue.toLocaleString()} total value
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative">
-              <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input
-                placeholder="Search deals, companies, owners..."
-                value={filters.searchTerm}
-                onChange={(e) =>
-                  setFilters((prev) => ({
-                    ...prev,
-                    searchTerm: e.target.value,
-                  }))
-                }
-                className="pl-10 w-72"
-              />
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <FilterIcon className="h-4 w-4 mr-2" />
-              Filter
-              {(filters.stages.length > 0 || filters.priorities.length > 0) && (
-                <Badge variant="secondary" size="sm" className="ml-2">
-                  {filters.stages.length + filters.priorities.length}
-                </Badge>
-              )}
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowColumnSettings(!showColumnSettings)}
-            >
-              <SettingsIcon className="h-4 w-4 mr-2" />
-              Columns
-            </Button>
-
-            <ThemeToggle />
-
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => setShowNewDealModal(true)}
-            >
-              <PlusIcon className="h-4 w-4 mr-2" />
-              New Deal
-            </Button>
-          </div>
-        </div>
-
-        {showFilters && (
-          <div className="border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Stage
-                </label>
-                <Select
-                  value=""
-                  placeholder="Select stages..."
-                  options={stageOptions}
-                  onValueChange={(value) => {
-                    setFilters((prev) => ({
-                      ...prev,
-                      stages: prev.stages.includes(value)
-                        ? prev.stages.filter((s) => s !== value)
-                        : [...prev.stages, value],
-                    }));
-                  }}
-                />
-                {filters.stages.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {filters.stages.map((stage) => (
-                      <Badge
-                        key={stage}
-                        variant="secondary"
-                        size="sm"
-                        className="cursor-pointer"
-                        onClick={() =>
-                          setFilters((prev) => ({
-                            ...prev,
-                            stages: prev.stages.filter((s) => s !== stage),
-                          }))
-                        }
-                      >
-                        {stage} ×
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Priority
-                </label>
-                <Select
-                  value=""
-                  placeholder="Select priorities..."
-                  options={priorityOptions}
-                  onValueChange={(value) => {
-                    setFilters((prev) => ({
-                      ...prev,
-                      priorities: prev.priorities.includes(value)
-                        ? prev.priorities.filter((p) => p !== value)
-                        : [...prev.priorities, value],
-                    }));
-                  }}
-                />
-                {filters.priorities.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {filters.priorities.map((priority) => (
-                      <Badge
-                        key={priority}
-                        variant="secondary"
-                        size="sm"
-                        className="cursor-pointer"
-                        onClick={() =>
-                          setFilters((prev) => ({
-                            ...prev,
-                            priorities: prev.priorities.filter(
-                              (p) => p !== priority
-                            ),
-                          }))
-                        }
-                      >
-                        {priority} ×
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Owner
-                </label>
-                <Select
-                  value=""
-                  placeholder="Select owners..."
-                  options={uniqueOwners.map((owner) => ({
-                    value: owner,
-                    label: owner,
-                  }))}
-                  onValueChange={(value) => {
-                    setFilters((prev) => ({
-                      ...prev,
-                      owners: prev.owners.includes(value)
-                        ? prev.owners.filter((o) => o !== value)
-                        : [...prev.owners, value],
-                    }));
-                  }}
-                />
-                {filters.owners.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {filters.owners.map((owner) => (
-                      <Badge
-                        key={owner}
-                        variant="secondary"
-                        size="sm"
-                        className="cursor-pointer"
-                        onClick={() =>
-                          setFilters((prev) => ({
-                            ...prev,
-                            owners: prev.owners.filter((o) => o !== owner),
-                          }))
-                        }
-                      >
-                        {owner} ×
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Amount Range
-                </label>
-                <div className="space-y-2">
-                  <Input
-                    type="number"
-                    placeholder="Min amount"
-                    value={filters.amountRange.min}
-                    onChange={(e) =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        amountRange: {
-                          ...prev.amountRange,
-                          min: Number(e.target.value) || 0,
-                        },
-                      }))
-                    }
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Max amount"
-                    value={filters.amountRange.max}
-                    onChange={(e) =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        amountRange: {
-                          ...prev.amountRange,
-                          max: Number(e.target.value) || 200000,
-                        },
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-              <div className="text-sm text-slate-600 dark:text-slate-400">
-                {filteredAndSortedDeals.length} of {deals.length} deals shown
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setFilters({
-                    stages: [],
-                    priorities: [],
-                    owners: [],
-                    sources: [],
-                    amountRange: { min: 0, max: 200000 },
-                    searchTerm: "",
+    <div className="w-full min-h-screen bg-gradient-to-br from-slate-100 to-slate-300 dark:from-slate-950 dark:to-slate-900 flex flex-col transition-colors duration-200">
+      <DealsTableTopBar
+        totalsData={totalsData}
+        selectedRows={selectedRows}
+        onNewDeal={() => setShowNewDealModal(true)}
+        filters={filters}
+        setFilters={setFilters}
+        uniqueValues={uniqueValues}
+        showFilters={showFilters}
+        setShowFilters={setShowFilters}
+        ThemeToggle={ThemeToggle}
+        TableFilters={TableFilters}
+      />
+      {/* Table Section */}
+      <div className="flex-1 w-full pt-6">
+        <div className="shadow-xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] text-sm">
+              <thead className="bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 sticky top-0 z-10 border-b border-slate-200 dark:border-slate-700">
+                <tr>
+                  {visibleColumnsWithActions.map((column) => (
+                    <th
+                      key={column.key}
+                      className="text-left p-4 font-semibold text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700 last:border-r-0 whitespace-nowrap select-none"
+                      style={{
+                        width: `${column.width}px`,
+                        minWidth: `${column.minWidth}px`,
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        {column.key === "select" ? (
+                          <Checkbox
+                            checked={isAllSelected}
+                            indeterminate={isIndeterminate}
+                            onCheckedChange={handleSelectAll}
+                          />
+                        ) : column.key === "expand" ? (
+                          <span></span>
+                        ) : column.key === "actions" ? (
+                          <span>Actions</span>
+                        ) : (
+                          <button
+                            className="flex items-center gap-1 hover:text-slate-900 dark:hover:text-slate-100 transition-colors group focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                            onClick={(e) =>
+                              handleSort(column.key as keyof Deal, e)
+                            }
+                          >
+                            <span className="truncate text-base font-semibold">
+                              {column.label}
+                            </span>
+                            {getSortIcon(column.key as keyof Deal)}
+                            {getSortPriority(column.key as keyof Deal) && (
+                              <Badge
+                                variant="secondary"
+                                size="sm"
+                                className="ml-1"
+                              >
+                                {getSortPriority(column.key as keyof Deal)}
+                              </Badge>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <DealsTableBody
+                deals={filteredAndSortedDeals}
+                columns={visibleColumns}
+                selectedRows={selectedRows}
+                expandedRows={expandedRows}
+                rowDeleteConfirm={rowDeleteConfirm}
+                onRowClick={handleRowSelection}
+                onDelete={(dealId: string) => {
+                  setDeals((prev) => prev.filter((d) => d.id !== dealId));
+                  setRowDeleteConfirm(null);
+                  setSelectedRows((prev) => {
+                    const newSet = new Set(prev);
+                    newSet.delete(dealId);
+                    return newSet;
                   });
                 }}
-              >
-                Clear All Filters
-              </Button>
-            </div>
+                onDeleteConfirm={(dealId: string) =>
+                  setRowDeleteConfirm((prev) =>
+                    prev === dealId ? null : dealId
+                  )
+                }
+                renderCell={renderCell}
+                ExpandedRowDetails={ExpandedRowDetails}
+                onExpand={(dealId: string) => toggleRowExpansion(dealId)}
+                onSelect={(dealId: string, rowIndex: number) =>
+                  handleRowSelection(dealId, rowIndex, {
+                    ctrlKey: false,
+                    metaKey: false,
+                    shiftKey: false,
+                  } as any)
+                }
+              />
+            </table>
+            {filteredAndSortedDeals.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-12 px-4">
+                <div className="text-slate-400 dark:text-slate-600 mb-4">
+                  <SearchIcon className="h-12 w-12" />
+                </div>
+                <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">
+                  No deals found
+                </h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400 text-center max-w-md">
+                  {filters.searchTerm ||
+                  filters.stages.length > 0 ||
+                  filters.priorities.length > 0
+                    ? "Try adjusting your search or filters to find what you're looking for."
+                    : "Get started by creating your first deal."}
+                </p>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="mt-4 shadow-md"
+                  onClick={() => setShowNewDealModal(true)}
+                >
+                  <PlusIcon className="h-4 w-4 mr-2" />
+                  Create Deal
+                </Button>
+              </div>
+            )}
           </div>
-        )}
-
-        {showColumnSettings && (
-          <div className="border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-4">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {columns
-                .filter((col) => col.key !== "expand" && col.key !== "select")
-                .map((column) => (
-                  <label
-                    key={column.key}
-                    className="flex items-center gap-2 cursor-pointer"
-                  >
-                    <Checkbox
-                      checked={column.visible}
-                      onCheckedChange={() => toggleColumnVisibility(column.key)}
-                    />
-                    <span className="text-sm text-slate-700 dark:text-slate-300">
-                      {column.label}
-                    </span>
-                  </label>
-                ))}
-            </div>
-            <div className="flex justify-end mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setColumns(DEFAULT_COLUMNS);
-                }}
-              >
-                Reset to Default
-              </Button>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
 
-      {selectedRows.size > 0 && (
-        <div className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-4 sm:px-6">
-          <div className="flex items-center justify-between">
+      {/* Totals Bar Section */}
+      <div className="bg-white/90 dark:bg-slate-900/90 border-t border-slate-200 dark:border-slate-800 px-4 py-6 sm:px-8 shadow-inner">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-slate-900 dark:text-slate-100 drop-shadow-sm">
+              {totalsData.totalDeals}
+            </div>
+            <div className="text-sm text-slate-600 dark:text-slate-400">
+              Total Deals
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 drop-shadow-sm">
+              ${totalsData.totalValue.toLocaleString()}
+            </div>
+            <div className="text-sm text-slate-600 dark:text-slate-400">
+              Total Value
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 drop-shadow-sm">
+              ${Math.round(totalsData.weightedValue).toLocaleString()}
+            </div>
+            <div className="text-sm text-slate-600 dark:text-slate-400">
+              Weighted Value
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400 drop-shadow-sm">
+              {Math.round(totalsData.avgProbability)}%
+            </div>
+            <div className="text-sm text-slate-600 dark:text-slate-400">
+              Avg Probability
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 drop-shadow-sm">
+              {totalsData.wonDeals}
+            </div>
+            <div className="text-sm text-slate-600 dark:text-slate-400">
+              Won
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400 drop-shadow-sm">
+              {totalsData.lostDeals}
+            </div>
+            <div className="text-sm text-slate-600 dark:text-slate-400">
+              Lost
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal for New Deal */}
+      {showNewDealModal && (
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-700 animate-in fade-in-0 zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+                Create New Deal
+              </h2>
+            </div>
+            <div className="p-6">
+              <NewDealForm
+                onSubmit={handleCreateDeal}
+                onCancel={() => setShowNewDealModal(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Action Bar - visually prominent, animated, with confirmation bar */}
+      {selectedRows.size > 0 && !showDeleteConfirm && (
+        <div className="fixed left-0 right-0 top-20 z-40 flex justify-center animate-in fade-in-0 slide-in-from-top-4 duration-200">
+          <div className="bg-gradient-to-r from-red-50 to-slate-100 dark:from-red-900/60 dark:to-slate-800/80 border border-red-200 dark:border-red-700 rounded-xl shadow-2xl px-8 py-4 flex items-center gap-6 max-w-2xl w-full mx-4">
             <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+              <span className="text-base font-semibold text-slate-900 dark:text-slate-100">
                 {selectedRows.size} deal{selectedRows.size !== 1 ? "s" : ""}{" "}
                 selected
               </span>
@@ -958,8 +704,13 @@ function DealsTableCore() {
                 total
               </Badge>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleBulkDuplicate}>
+            <div className="flex items-center gap-2 ml-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBulkDuplicate}
+                className="hover:bg-slate-200 dark:hover:bg-slate-700"
+              >
                 <CopyIcon className="h-4 w-4 mr-2" />
                 Duplicate
               </Button>
@@ -977,7 +728,8 @@ function DealsTableCore() {
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={handleBulkDelete}
+                onClick={() => setShowDeleteConfirm(true)}
+                className="hover:bg-red-600 hover:text-white transition-colors"
               >
                 <TrashIcon className="h-4 w-4 mr-2" />
                 Delete
@@ -987,193 +739,36 @@ function DealsTableCore() {
         </div>
       )}
 
-      <div className="flex-1 overflow-hidden">
-        <div className="h-full overflow-auto">
-          <table className="w-full min-w-max">
-            <thead className="bg-slate-100 dark:bg-slate-800 sticky top-0 z-10 border-b border-slate-200 dark:border-slate-700">
-              <tr>
-                {visibleColumns.map((column) => (
-                  <th
-                    key={column.key}
-                    className="text-left p-4 font-semibold text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700 last:border-r-0"
-                    style={{
-                      width: `${column.width}px`,
-                      minWidth: `${column.minWidth}px`,
-                    }}
-                  >
-                    <div className="flex items-center gap-2">
-                      {column.key === "select" ? (
-                        <Checkbox
-                          checked={isAllSelected}
-                          indeterminate={isIndeterminate}
-                          onCheckedChange={handleSelectAll}
-                        />
-                      ) : column.key === "expand" ? (
-                        <span></span>
-                      ) : (
-                        <button
-                          className="flex items-center gap-1 hover:text-slate-900 dark:hover:text-slate-100 transition-colors group"
-                          onClick={(e) =>
-                            handleSort(column.key as keyof Deal, e)
-                          }
-                        >
-                          <span className="truncate text-sm">
-                            {column.label}
-                          </span>
-                          {getSortIcon(column.key as keyof Deal)}
-                          {getSortPriority(column.key as keyof Deal) && (
-                            <Badge
-                              variant="secondary"
-                              size="sm"
-                              className="ml-1"
-                            >
-                              {getSortPriority(column.key as keyof Deal)}
-                            </Badge>
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-
-            <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-800">
-              {filteredAndSortedDeals.map((deal, rowIndex) => (
-                <React.Fragment key={deal.id}>
-                  <tr
-                    className={`
-                        hover:bg-slate-50 dark:hover:bg-slate-800/50 
-                        transition-all duration-150 cursor-pointer
-                        ${
-                          selectedRows.has(deal.id)
-                            ? "bg-slate-100 dark:bg-slate-800 border-l-4 border-l-slate-500 dark:border-l-slate-400"
-                            : ""
-                        }
-                      `}
-                    onClick={(e) => handleRowSelection(deal.id, rowIndex, e)}
-                  >
-                    {visibleColumns.map((column) => (
-                      <td
-                        key={`${deal.id}-${column.key}`}
-                        className="p-4 border-r border-slate-100 dark:border-slate-800 last:border-r-0"
-                        style={{
-                          width: `${column.width}px`,
-                          minWidth: `${column.minWidth}px`,
-                        }}
-                      >
-                        {renderCell(deal, column)}
-                      </td>
-                    ))}
-                  </tr>
-
-                  {expandedRows.has(deal.id) && (
-                    <tr>
-                      <td colSpan={visibleColumns.length} className="p-0">
-                        <ExpandedRowDetails deal={deal} />
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
-
-          {filteredAndSortedDeals.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-12 px-4">
-              <div className="text-slate-400 dark:text-slate-600 mb-4">
-                <SearchIcon className="h-12 w-12" />
-              </div>
-              <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">
-                No deals found
-              </h3>
-              <p className="text-sm text-slate-600 dark:text-slate-400 text-center max-w-md">
-                {filters.searchTerm ||
-                filters.stages.length > 0 ||
-                filters.priorities.length > 0
-                  ? "Try adjusting your search or filters to find what you're looking for."
-                  : "Get started by creating your first deal."}
-              </p>
+      {/* Custom Delete Confirmation Bar */}
+      {selectedRows.size > 0 && showDeleteConfirm && (
+        <div className="fixed left-0 right-0 top-20 z-50 flex justify-center animate-in fade-in-0 slide-in-from-top-4 duration-200">
+          <div className="bg-red-100 dark:bg-red-900/80 border border-red-300 dark:border-red-700 rounded-xl shadow-2xl px-8 py-4 flex items-center gap-6 max-w-2xl w-full mx-4">
+            <span className="text-base font-semibold text-red-800 dark:text-red-200">
+              Are you sure you want to delete {selectedRows.size} deal
+              {selectedRows.size !== 1 ? "s" : ""}? This action cannot be
+              undone.
+            </span>
+            <div className="flex items-center gap-2 ml-auto">
               <Button
-                variant="default"
+                variant="outline"
                 size="sm"
-                className="mt-4"
-                onClick={() => setShowNewDealModal(true)}
+                onClick={() => setShowDeleteConfirm(false)}
+                className="hover:bg-slate-200 dark:hover:bg-slate-700"
               >
-                <PlusIcon className="h-4 w-4 mr-2" />
-                Create Deal
+                Cancel
               </Button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 px-4 py-6 sm:px-6">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-              {totalsData.totalDeals}
-            </div>
-            <div className="text-sm text-slate-600 dark:text-slate-400">
-              Total Deals
-            </div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-              ${totalsData.totalValue.toLocaleString()}
-            </div>
-            <div className="text-sm text-slate-600 dark:text-slate-400">
-              Total Value
-            </div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-              ${Math.round(totalsData.weightedValue).toLocaleString()}
-            </div>
-            <div className="text-sm text-slate-600 dark:text-slate-400">
-              Weighted Value
-            </div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-              {Math.round(totalsData.avgProbability)}%
-            </div>
-            <div className="text-sm text-slate-600 dark:text-slate-400">
-              Avg Probability
-            </div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-              {totalsData.wonDeals}
-            </div>
-            <div className="text-sm text-slate-600 dark:text-slate-400">
-              Won
-            </div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-              {totalsData.lostDeals}
-            </div>
-            <div className="text-sm text-slate-600 dark:text-slate-400">
-              Lost
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {showNewDealModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-              <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                Create New Deal
-              </h2>
-            </div>
-            <div className="p-6">
-              <NewDealForm
-                onSubmit={handleCreateDeal}
-                onCancel={() => setShowNewDealModal(false)}
-              />
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  handleBulkDelete();
+                  setShowDeleteConfirm(false);
+                }}
+                className="hover:bg-red-600 hover:text-white transition-colors"
+              >
+                <TrashIcon className="h-4 w-4 mr-2" />
+                Confirm Delete
+              </Button>
             </div>
           </div>
         </div>

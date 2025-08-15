@@ -88,6 +88,20 @@ export function NewDealForm({ onSubmit, onCancel }: NewDealFormProps) {
       amount: formattedAmount,
       owner: { name: "Current User", initials: "CU" },
       tags: [],
+      stage: formData.stage as Deal["stage"],
+      priority: formData.priority as Deal["priority"],
+    });
+    // Optionally reset the form after submit
+    setFormData({
+      name: "",
+      company: "",
+      amount: "",
+      stage: "New",
+      priority: "Medium",
+      probability: 50,
+      closeDate: new Date().toISOString().split("T")[0],
+      source: "Direct",
+      description: "",
     });
   };
 
