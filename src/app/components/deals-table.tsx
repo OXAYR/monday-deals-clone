@@ -479,7 +479,7 @@ function DealsTableCore() {
   );
 
   return (
-    <div className="w-full min-h-screen bg-background flex flex-col transition-colors duration-200">
+    <div className="w-full min-h-screen  flex flex-col transition-colors duration-200">
       <DealsTableTopBar
         totalsData={totalsData}
         selectedRows={selectedRows}
