@@ -377,7 +377,7 @@ function DealsTableCore() {
           );
         case "name":
           return (
-            <div className="font-medium text-slate-900 dark:text-slate-100 truncate max-w-[200px]">
+            <div className="font-medium text-foreground truncate max-w-[200px]">
               {deal.name}
             </div>
           );
@@ -398,7 +398,7 @@ function DealsTableCore() {
               <div className="h-8 w-8 rounded-full bg-gradient-to-br from-slate-400 to-slate-600 flex items-center justify-center text-sm font-medium text-white flex-shrink-0">
                 {deal.owner.initials}
               </div>
-              <span className="text-sm text-slate-900 dark:text-slate-100 truncate hidden sm:inline">
+              <span className="text-sm text-foreground truncate hidden sm:inline">
                 {deal.owner.name}
               </span>
             </div>
@@ -411,7 +411,7 @@ function DealsTableCore() {
           );
         case "amount":
           return (
-            <div className="text-sm font-semibold text-slate-900 dark:text-slate-100 text-right">
+            <div className="text-sm font-semibold text-foreground text-right">
               {deal.amount}
             </div>
           );
@@ -479,7 +479,7 @@ function DealsTableCore() {
   );
 
   return (
-    <div className="w-full min-h-screen bg-gradient-to-br from-slate-100 to-slate-300 dark:from-slate-950 dark:to-slate-900 flex flex-col transition-colors duration-200">
+    <div className="w-full min-h-screen bg-background flex flex-col transition-colors duration-200">
       <DealsTableTopBar
         totalsData={totalsData}
         selectedRows={selectedRows}
@@ -494,15 +494,15 @@ function DealsTableCore() {
       />
       {/* Table Section */}
       <div className="flex-1 w-full pt-6">
-        <div className="shadow-xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+        <div className="shadow-xl overflow-hidden bg-card border border-border">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-sm">
-              <thead className="bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 sticky top-0 z-10 border-b border-slate-200 dark:border-slate-700">
+              <thead className="bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 sticky top-0 z-10 border-b border-border">
                 <tr>
                   {visibleColumnsWithActions.map((column) => (
                     <th
                       key={column.key}
-                      className="text-left p-4 font-semibold text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700 last:border-r-0 whitespace-nowrap select-none"
+                      className="text-left p-4 font-semibold text-slate-700 dark:text-slate-300 border-r border-border last:border-r-0 whitespace-nowrap select-none"
                       style={{
                         width: `${column.width}px`,
                         minWidth: `${column.minWidth}px`,
@@ -584,7 +584,7 @@ function DealsTableCore() {
                 <div className="text-slate-400 dark:text-slate-600 mb-4">
                   <SearchIcon className="h-12 w-12" />
                 </div>
-                <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">
+                <h3 className="text-lg font-medium text-foreground mb-2">
                   No deals found
                 </h3>
                 <p className="text-sm text-slate-600 dark:text-slate-400 text-center max-w-md">
@@ -610,10 +610,10 @@ function DealsTableCore() {
       </div>
 
       {/* Totals Bar Section */}
-      <div className="bg-white/90 dark:bg-slate-900/90 border-t border-slate-200 dark:border-slate-800 px-4 py-6 sm:px-8 shadow-inner">
+      <div className="bg-background/90 dark:bg-slate-900/90 border-t border-border px-4 py-6 sm:px-8 shadow-inner">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
           <div className="text-center">
-            <div className="text-2xl font-bold text-slate-900 dark:text-slate-100 drop-shadow-sm">
+            <div className="text-2xl font-bold text-foreground drop-shadow-sm">
               {totalsData.totalDeals}
             </div>
             <div className="text-sm text-slate-600 dark:text-slate-400">
@@ -629,7 +629,7 @@ function DealsTableCore() {
             </div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 drop-shadow-sm">
+            <div className="text-2xl font-bold text-primary dark:text-primary-400 drop-shadow-sm">
               ${Math.round(totalsData.weightedValue).toLocaleString()}
             </div>
             <div className="text-sm text-slate-600 dark:text-slate-400">
@@ -637,7 +637,7 @@ function DealsTableCore() {
             </div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400 drop-shadow-sm">
+            <div className="text-2xl font-bold text-primary dark:text-primary-400 drop-shadow-sm">
               {Math.round(totalsData.avgProbability)}%
             </div>
             <div className="text-sm text-slate-600 dark:text-slate-400">
@@ -666,9 +666,9 @@ function DealsTableCore() {
       {/* Modal for New Deal */}
       {showNewDealModal && (
         <div className="fixed inset-0 bg-black/40 dark:bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-700 animate-in fade-in-0 zoom-in-95 duration-200">
-            <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+          <div className="bg-card dark:bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-border animate-in fade-in-0 zoom-in-95 duration-200">
+            <div className="p-6 border-b border-border">
+              <h2 className="text-xl font-bold text-foreground">
                 Create New Deal
               </h2>
             </div>
@@ -687,7 +687,7 @@ function DealsTableCore() {
         <div className="fixed left-0 right-0 top-20 z-40 flex justify-center animate-in fade-in-0 slide-in-from-top-4 duration-200">
           <div className="bg-gradient-to-r from-red-50 to-slate-100 dark:from-red-900/60 dark:to-slate-800/80 border border-red-200 dark:border-red-700 rounded-xl shadow-2xl px-8 py-4 flex items-center gap-6 max-w-2xl w-full mx-4">
             <div className="flex items-center gap-3">
-              <span className="text-base font-semibold text-slate-900 dark:text-slate-100">
+              <span className="text-base font-semibold text-foreground">
                 {selectedRows.size} deal{selectedRows.size !== 1 ? "s" : ""}{" "}
                 selected
               </span>
