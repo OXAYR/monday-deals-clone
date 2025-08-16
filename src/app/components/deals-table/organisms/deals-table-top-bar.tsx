@@ -343,7 +343,7 @@ export function DealsTableTopBar({
 
   return (
     <>
-      <div className="bg-card/90 border-b border-border px-4 py-6 sm:px-8 flex flex-col gap-4 shadow-lg sticky top-0 z-30 backdrop-blur-md">
+      <div className="bg-card/90 border-b border-border px-4 py-6 sm:px-8 flex flex-col gap-4 rounded-lg shadow-lg border border-border sticky top-0 z-30 backdrop-blur-md">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <DealsTableTitleStats
             totalsData={totalsData}

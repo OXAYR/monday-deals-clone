@@ -664,11 +664,7 @@ function DealsTableCore() {
             ) {
               const deal = filteredAndSortedDeals[currentRowIndex];
               const dealKey = prevColumn.key as keyof Deal;
-              handleCellClick(
-                dealId,
-                prevColumn.key as string,
-                deal[dealKey]
-              );
+              handleCellClick(dealId, prevColumn.key as string, deal[dealKey]);
             }
           }
         } else {
@@ -682,11 +678,7 @@ function DealsTableCore() {
             ) {
               const deal = filteredAndSortedDeals[currentRowIndex];
               const dealKey = nextColumn.key as keyof Deal;
-              handleCellClick(
-                dealId,
-                nextColumn.key as string,
-                deal[dealKey]
-              );
+              handleCellClick(dealId, nextColumn.key as string, deal[dealKey]);
             }
           }
         }
@@ -806,11 +798,7 @@ function DealsTableCore() {
         );
         if (firstEditableColumn) {
           const dealKey = firstEditableColumn.key as keyof Deal;
-          handleCellClick(
-            dealId,
-            firstEditableColumn.key,
-            deal[dealKey]
-          );
+          handleCellClick(dealId, firstEditableColumn.key, deal[dealKey]);
         }
       }
       closeContextMenu();
@@ -1191,7 +1179,11 @@ function DealsTableCore() {
           );
         default:
           const columnKey = column.key as string;
-          if (columnKey === "select" || columnKey === "expand" || columnKey === "actions") {
+          if (
+            columnKey === "select" ||
+            columnKey === "expand" ||
+            columnKey === "actions"
+          ) {
             return null;
           }
           return (
@@ -1273,11 +1265,7 @@ function DealsTableCore() {
               column.key !== "actions"
             ) {
               const dealKey = column.key as keyof Deal;
-              handleCellClick(
-                deal.id,
-                column.key as string,
-                deal[dealKey]
-              );
+              handleCellClick(deal.id, column.key as string, deal[dealKey]);
             }
           }
           break;
@@ -1619,7 +1607,7 @@ function DealsTableCore() {
       />
       {/* Table Section */}
       <div className="flex-1 w-full pt-6">
-        <div className="relative shadow-xl overflow-x-auto bg-card border border-border">
+        <div className="relative shadow-xl overflow-x-auto bg-card border border-border rounded-lg">
           <table
             className={`w-full text-sm ${
               isMobile
@@ -1675,14 +1663,12 @@ function DealsTableCore() {
                           />
                         ) : column.key === "expand" ? (
                           <span></span>
-                                                ) : column.key === "actions" ? (
+                        ) : column.key === "actions" ? (
                           <span>Actions</span>
                         ) : (
                           <div className="flex items-center gap-1 w-full">
                             <button
-                              className={`${getSortButtonClass(
-                                column.key
-                              )} ${
+                              className={`${getSortButtonClass(column.key)} ${
                                 draggingColumn === column.key
                                   ? "cursor-grabbing"
                                   : "cursor-grab"
@@ -1691,9 +1677,9 @@ function DealsTableCore() {
                               onContextMenu={(e) =>
                                 handleContextMenu(e, "header", column)
                               }
-                              title={`${getSortTooltip(
-                                column.key
-                              )}${draggingColumn ? "" : " - Drag to reorder"}`}
+                              title={`${getSortTooltip(column.key)}${
+                                draggingColumn ? "" : " - Drag to reorder"
+                              }`}
                             >
                               <span className="truncate text-base font-semibold">
                                 {column.label}
