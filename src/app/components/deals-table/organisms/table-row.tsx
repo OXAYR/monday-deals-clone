@@ -16,16 +16,22 @@ interface TableRowProps {
   onDeleteConfirm: (dealId: string) => void;
   deleteConfirmId: string | null;
   renderCell: (deal: Deal, column: ColumnConfig) => React.ReactNode;
-  ExpandedRowDetails: React.ComponentType<{ deal: Deal }>;
+  ExpandedRowDetails: React.ComponentType<{
+    deal: Deal;
+    onActivityAdd?: (dealId: string, activity: any) => void;
+    onFileUpload?: (dealId: string, file: File) => void;
+  }>;
   onExpand: () => void;
   onSelect: (e: React.MouseEvent) => void;
   rowIndex: number;
   onCellFocus: (rowIndex: number, colIndex: number) => void;
-  onRowDragStart: (e: React.DragEvent) => void;
-  onRowDragOver: (e: React.DragEvent) => void;
-  onRowDrop: (e: React.DragEvent) => void;
-  onRowDragEnd: (e: React.DragEvent) => void;
-  getRowDragDropClasses: (dealId: string) => string;
+  onRowDragStart?: (e: React.DragEvent) => void;
+  onRowDragOver?: (e: React.DragEvent) => void;
+  onRowDrop?: (e: React.DragEvent) => void;
+  onRowDragEnd?: (e: React.DragEvent) => void;
+  getRowDragDropClasses?: (dealId: string) => string;
+  onActivityAdd?: (dealId: string, activity: any) => void;
+  onFileUpload?: (dealId: string, file: File) => void;
 }
 
 export function TableRow({
@@ -49,18 +55,20 @@ export function TableRow({
   onRowDrop,
   onRowDragEnd,
   getRowDragDropClasses,
+  onActivityAdd,
+  onFileUpload,
 }: TableRowProps) {
   return (
     <>
       <tr
         className={`${
           isSelected ? "bg-accent/10 border-l-accent" : ""
-        } hover:bg-muted/30 transition-colors cursor-pointer ${getRowDragDropClasses(
-          deal.id
-        )}`}
+        } hover:bg-muted/30 transition-colors cursor-pointer ${
+          getRowDragDropClasses?.(deal.id) || ""
+        }`}
         onClick={onRowClick}
         onContextMenu={onContextMenu}
-        draggable
+        draggable={!!onRowDragStart}
         onDragStart={onRowDragStart}
         onDragOver={onRowDragOver}
         onDrop={onRowDrop}
@@ -121,7 +129,11 @@ export function TableRow({
       {isExpanded && (
         <tr>
           <td colSpan={columns.length + 1} className="p-0">
-            <ExpandedRowDetails deal={deal} />
+            <ExpandedRowDetails
+              deal={deal}
+              onActivityAdd={onActivityAdd}
+              onFileUpload={onFileUpload}
+            />
           </td>
         </tr>
       )}

@@ -93,6 +93,7 @@ export function TableFilters({
 
   return (
     <div className="space-y-4">
+      {/* Search Input */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
         <div className="flex-1 w-full sm:w-auto">
           <Input
@@ -103,137 +104,203 @@ export function TableFilters({
           />
         </div>
 
+        {/* Filter Controls */}
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onToggleFilters}
-            className={cn(
-              "flex-1 sm:flex-none",
-              hasActiveFilters && "bg-primary/10 border-primary"
-            )}
-          >
-            <FilterIcon className="h-4 w-4 mr-2" />
-            Filters
-            {hasActiveFilters && (
-              <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
-                {activeFilterCount}
-              </Badge>
-            )}
-          </Button>
-
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" onClick={clearFilters}>
               <XIcon className="h-4 w-4 mr-1" />
-              <span className="hidden sm:inline">Clear</span>
+              <span className="hidden sm:inline">Clear All</span>
             </Button>
           )}
         </div>
       </div>
 
-      {showFilters && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-4 bg-muted/30 rounded-lg border">
-          {/* Stage Filter */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="justify-between w-full bg-transparent"
+      {/* Filter Dropdowns */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-4 bg-muted/30 rounded-lg border">
+        {/* Stage Filter */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="justify-between w-full bg-transparent"
+            >
+              Stage ({filters.stages.length})
+              <ChevronDownIcon className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            {uniqueValues.stages.map((stage) => (
+              <DropdownMenuCheckboxItem
+                key={stage}
+                checked={filters.stages.includes(stage)}
+                onCheckedChange={() => toggleArrayFilter("stages", stage)}
               >
-                Stage ({filters.stages.length})
-                <ChevronDownIcon className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-48">
-              {uniqueValues.stages.map((stage) => (
-                <DropdownMenuCheckboxItem
-                  key={stage}
-                  checked={filters.stages.includes(stage)}
-                  onCheckedChange={() => toggleArrayFilter("stages", stage)}
-                >
-                  {stage}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                {stage}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-          {/* Priority Filter */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="justify-between w-full bg-transparent"
+        {/* Priority Filter */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="justify-between w-full bg-transparent"
+            >
+              Priority ({filters.priorities.length})
+              <ChevronDownIcon className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            {uniqueValues.priorities.map((priority) => (
+              <DropdownMenuCheckboxItem
+                key={priority}
+                checked={filters.priorities.includes(priority)}
+                onCheckedChange={() =>
+                  toggleArrayFilter("priorities", priority)
+                }
               >
-                Priority ({filters.priorities.length})
-                <ChevronDownIcon className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-48">
-              {uniqueValues.priorities.map((priority) => (
-                <DropdownMenuCheckboxItem
-                  key={priority}
-                  checked={filters.priorities.includes(priority)}
-                  onCheckedChange={() =>
-                    toggleArrayFilter("priorities", priority)
-                  }
-                >
-                  {priority}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                {priority}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-          {/* Owner Filter */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="justify-between w-full bg-transparent"
+        {/* Owner Filter */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="justify-between w-full bg-transparent"
+            >
+              Owner ({filters.owners.length})
+              <ChevronDownIcon className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            {uniqueValues.owners.map((owner) => (
+              <DropdownMenuCheckboxItem
+                key={owner}
+                checked={filters.owners.includes(owner)}
+                onCheckedChange={() => toggleArrayFilter("owners", owner)}
               >
-                Owner ({filters.owners.length})
-                <ChevronDownIcon className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-48">
-              {uniqueValues.owners.map((owner) => (
-                <DropdownMenuCheckboxItem
-                  key={owner}
-                  checked={filters.owners.includes(owner)}
-                  onCheckedChange={() => toggleArrayFilter("owners", owner)}
-                >
-                  {owner}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                {owner}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-          {/* Source Filter */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="justify-between w-full bg-transparent"
+        {/* Source Filter */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="justify-between w-full bg-transparent"
+            >
+              Source ({filters.sources.length})
+              <ChevronDownIcon className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            {uniqueValues.sources.map((source) => (
+              <DropdownMenuCheckboxItem
+                key={source}
+                checked={filters.sources.includes(source)}
+                onCheckedChange={() => toggleArrayFilter("sources", source)}
               >
-                Source ({filters.sources.length})
-                <ChevronDownIcon className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-48">
-              {uniqueValues.sources.map((source) => (
-                <DropdownMenuCheckboxItem
-                  key={source}
-                  checked={filters.sources.includes(source)}
-                  onCheckedChange={() => toggleArrayFilter("sources", source)}
-                >
-                  {source}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                {source}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* Amount Range Filter */}
+      <div className="p-4 bg-muted/30 rounded-lg border">
+        <h4 className="text-sm font-medium text-foreground mb-3">
+          Amount Range
+        </h4>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1">
+              Min Amount
+            </label>
+            <Input
+              type="number"
+              placeholder="0"
+              value={filters.amountRange.min}
+              onChange={(e) =>
+                updateFilter("amountRange", {
+                  ...filters.amountRange,
+                  min: Number(e.target.value) || 0,
+                })
+              }
+              className="w-full"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1">
+              Max Amount
+            </label>
+            <Input
+              type="number"
+              placeholder="200000"
+              value={filters.amountRange.max}
+              onChange={(e) =>
+                updateFilter("amountRange", {
+                  ...filters.amountRange,
+                  max: Number(e.target.value) || 200000,
+                })
+              }
+              className="w-full"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Active Filters Summary */}
+      {hasActiveFilters && (
+        <div className="flex flex-wrap gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20">
+          <span className="text-sm font-medium text-primary">
+            Active Filters:
+          </span>
+          {filters.stages.map((stage) => (
+            <Badge key={stage} variant="secondary" className="text-xs">
+              Stage: {stage}
+            </Badge>
+          ))}
+          {filters.priorities.map((priority) => (
+            <Badge key={priority} variant="secondary" className="text-xs">
+              Priority: {priority}
+            </Badge>
+          ))}
+          {filters.owners.map((owner) => (
+            <Badge key={owner} variant="secondary" className="text-xs">
+              Owner: {owner}
+            </Badge>
+          ))}
+          {filters.sources.map((source) => (
+            <Badge key={source} variant="secondary" className="text-xs">
+              Source: {source}
+            </Badge>
+          ))}
+          {filters.searchTerm && (
+            <Badge variant="secondary" className="text-xs">
+              Search: "{filters.searchTerm}"
+            </Badge>
+          )}
+          {(filters.amountRange.min > 0 ||
+            filters.amountRange.max < 200000) && (
+            <Badge variant="secondary" className="text-xs">
+              Amount: ${filters.amountRange.min.toLocaleString()} - $
+              {filters.amountRange.max.toLocaleString()}
+            </Badge>
+          )}
         </div>
       )}
     </div>

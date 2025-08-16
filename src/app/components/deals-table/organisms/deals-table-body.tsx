@@ -15,16 +15,22 @@ interface DealsTableBodyProps {
   onDelete: (dealId: string) => void;
   onDeleteConfirm: (dealId: string) => void;
   renderCell: (deal: Deal, column: ColumnConfig) => React.ReactNode;
-  ExpandedRowDetails: React.ComponentType<{ deal: Deal }>;
+  ExpandedRowDetails: React.ComponentType<{
+    deal: Deal;
+    onActivityAdd?: (dealId: string, activity: any) => void;
+    onFileUpload?: (dealId: string, file: File) => void;
+  }>;
   onExpand: (dealId: string) => void;
   onSelect: (dealId: string, rowIndex: number) => void;
   onKeyDown: (e: React.KeyboardEvent) => void;
   onCellFocus: (rowIndex: number, colIndex: number) => void;
-  onRowDragStart: (e: React.DragEvent, deal: Deal) => void;
-  onRowDragOver: (e: React.DragEvent, deal: Deal) => void;
-  onRowDrop: (e: React.DragEvent, deal: Deal) => void;
-  onRowDragEnd: (e: React.DragEvent) => void;
-  getRowDragDropClasses: (dealId: string) => string;
+  onRowDragStart?: (e: React.DragEvent, deal: Deal) => void;
+  onRowDragOver?: (e: React.DragEvent, deal: Deal) => void;
+  onRowDrop?: (e: React.DragEvent, deal: Deal) => void;
+  onRowDragEnd?: (e: React.DragEvent) => void;
+  getRowDragDropClasses?: (dealId: string) => string;
+  onActivityAdd?: (dealId: string, activity: any) => void;
+  onFileUpload?: (dealId: string, file: File) => void;
 }
 
 export function DealsTableBody({
@@ -48,6 +54,8 @@ export function DealsTableBody({
   onRowDrop,
   onRowDragEnd,
   getRowDragDropClasses,
+  onActivityAdd,
+  onFileUpload,
 }: DealsTableBodyProps) {
   return (
     <tbody className="bg-card divide-y divide-border" onKeyDown={onKeyDown}>
@@ -69,11 +77,13 @@ export function DealsTableBody({
           onSelect={(e) => onSelect(deal.id, rowIndex)}
           rowIndex={rowIndex}
           onCellFocus={onCellFocus}
-          onRowDragStart={(e: React.DragEvent) => onRowDragStart(e, deal)}
-          onRowDragOver={(e: React.DragEvent) => onRowDragOver(e, deal)}
-          onRowDrop={(e: React.DragEvent) => onRowDrop(e, deal)}
-          onRowDragEnd={onRowDragEnd}
-          getRowDragDropClasses={getRowDragDropClasses}
+          onRowDragStart={(e: React.DragEvent) => onRowDragStart?.(e, deal)}
+          onRowDragOver={(e: React.DragEvent) => onRowDragOver?.(e, deal)}
+          onRowDrop={(e: React.DragEvent) => onRowDrop?.(e, deal)}
+          onRowDragEnd={onRowDragEnd || (() => {})}
+          getRowDragDropClasses={getRowDragDropClasses || (() => "")}
+          onActivityAdd={onActivityAdd}
+          onFileUpload={onFileUpload}
         />
       ))}
     </tbody>

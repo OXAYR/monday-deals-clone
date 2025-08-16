@@ -40,7 +40,7 @@ interface DropdownCheckboxItemProps {
 const DropdownContext = React.createContext<{
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
-  triggerRef: React.RefObject<HTMLElement>;
+  triggerRef: React.RefObject<HTMLElement | null>;
 }>({
   isOpen: false,
   setIsOpen: () => {},
@@ -113,24 +113,60 @@ export function DropdownContent({
   const { isOpen, setIsOpen, triggerRef } = React.useContext(DropdownContext);
   const contentRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: 0, left: 0 });
+  const [placement, setPlacement] = useState<"bottom" | "top">("bottom");
 
   useEffect(() => {
     if (isOpen && triggerRef.current) {
-      const triggerRect = triggerRef.current.getBoundingClientRect();
+      const triggerElement = triggerRef.current;
+      const triggerRect = triggerElement.getBoundingClientRect();
       const scrollY = window.scrollY;
       const scrollX = window.scrollX;
+      const viewportHeight = window.innerHeight;
+      const viewportWidth = window.innerWidth;
 
-      let left = triggerRect.left + scrollX;
-      if (align === "center") {
-        left = triggerRect.left + scrollX + triggerRect.width / 2;
-      } else if (align === "end") {
-        left = triggerRect.right + scrollX;
+      // Estimate content height (you can make this more dynamic)
+      const estimatedContentHeight = 200;
+      const estimatedContentWidth = 192; // w-48 = 12rem = 192px
+
+      // Determine vertical placement
+      const spaceBelow = viewportHeight - triggerRect.bottom;
+      const spaceAbove = triggerRect.top;
+      const shouldPlaceAbove =
+        spaceBelow < estimatedContentHeight &&
+        spaceAbove > estimatedContentHeight;
+
+      // Calculate vertical position
+      let top: number;
+      if (shouldPlaceAbove) {
+        top = triggerRect.top + scrollY - estimatedContentHeight - 4;
+        setPlacement("top");
+      } else {
+        top = triggerRect.bottom + scrollY + 4;
+        setPlacement("bottom");
       }
 
-      setPosition({
-        top: triggerRect.bottom + scrollY + 4,
-        left,
-      });
+      // Calculate horizontal position
+      let left: number;
+      if (align === "center") {
+        left =
+          triggerRect.left +
+          scrollX +
+          triggerRect.width / 2 -
+          estimatedContentWidth / 2;
+      } else if (align === "end") {
+        left = triggerRect.right + scrollX - estimatedContentWidth;
+      } else {
+        left = triggerRect.left + scrollX;
+      }
+
+      // Ensure dropdown doesn't go outside viewport horizontally
+      if (left < scrollX) {
+        left = scrollX + 8; // Add some padding from viewport edge
+      } else if (left + estimatedContentWidth > scrollX + viewportWidth) {
+        left = scrollX + viewportWidth - estimatedContentWidth - 8;
+      }
+
+      setPosition({ top, left });
     }
   }, [isOpen, align]);
 
@@ -152,32 +188,82 @@ export function DropdownContent({
       }
     };
 
+    const handleResize = () => {
+      // Recalculate position on window resize
+      if (isOpen && triggerRef.current) {
+        const triggerElement = triggerRef.current;
+        const triggerRect = triggerElement.getBoundingClientRect();
+        const scrollY = window.scrollY;
+        const scrollX = window.scrollX;
+        const viewportHeight = window.innerHeight;
+        const viewportWidth = window.innerWidth;
+
+        const estimatedContentHeight = 200;
+        const estimatedContentWidth = 192;
+
+        const spaceBelow = viewportHeight - triggerRect.bottom;
+        const spaceAbove = triggerRect.top;
+        const shouldPlaceAbove =
+          spaceBelow < estimatedContentHeight &&
+          spaceAbove > estimatedContentHeight;
+
+        let top: number;
+        if (shouldPlaceAbove) {
+          top = triggerRect.top + scrollY - estimatedContentHeight - 4;
+          setPlacement("top");
+        } else {
+          top = triggerRect.bottom + scrollY + 4;
+          setPlacement("bottom");
+        }
+
+        let left: number;
+        if (align === "center") {
+          left =
+            triggerRect.left +
+            scrollX +
+            triggerRect.width / 2 -
+            estimatedContentWidth / 2;
+        } else if (align === "end") {
+          left = triggerRect.right + scrollX - estimatedContentWidth;
+        } else {
+          left = triggerRect.left + scrollX;
+        }
+
+        if (left < scrollX) {
+          left = scrollX + 8;
+        } else if (left + estimatedContentWidth > scrollX + viewportWidth) {
+          left = scrollX + viewportWidth - estimatedContentWidth - 8;
+        }
+
+        setPosition({ top, left });
+      }
+    };
+
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       document.addEventListener("keydown", handleEscape);
+      window.addEventListener("resize", handleResize);
+      window.addEventListener("scroll", handleResize);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleEscape);
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("scroll", handleResize);
     };
-  }, [isOpen, setIsOpen]);
+  }, [isOpen, setIsOpen, align]);
 
   if (!isOpen) return null;
 
   const content = (
     <div
       ref={contentRef}
-      className={`fixed z-50 min-w-32 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-lg py-1 ${className}`}
+      className={`fixed z-50 min-w-48 max-w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-lg py-1 max-h-60 overflow-y-auto ${className}`}
       style={{
         top: position.top,
         left: position.left,
-        transform:
-          align === "center"
-            ? "translateX(-50%)"
-            : align === "end"
-            ? "translateX(-100%)"
-            : "none",
+        transform: align === "center" ? "translateX(-50%)" : "none",
       }}
     >
       {children}

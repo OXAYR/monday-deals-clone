@@ -55,6 +55,28 @@ import {
  * Implements comprehensive CRM functionality with professional UX
  */
 function DealsTableCore() {
+  // Responsive utilities
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(true);
+
+  // Hide drag-and-drop on mobile/tablet
+  const showDragDrop = isDesktop;
+
+  // Update responsive state on window resize
+  useEffect(() => {
+    const updateResponsiveState = () => {
+      const width = window.innerWidth;
+      setIsMobile(width < 768);
+      setIsTablet(width >= 768 && width < 1024);
+      setIsDesktop(width >= 1024);
+    };
+
+    updateResponsiveState();
+    window.addEventListener("resize", updateResponsiveState);
+    return () => window.removeEventListener("resize", updateResponsiveState);
+  }, []);
+
   const [deals, setDeals] = useState<Deal[]>(SAMPLE_DEALS);
   const [sortConfigs, setSortConfigs] = useState<SortConfig[]>([]);
   const [filters, setFilters] = useState<FilterConfig>({
@@ -104,6 +126,30 @@ function DealsTableCore() {
   const [dragOverRow, setDragOverRow] = useState<string | null>(null);
   const [headerFilters, setHeaderFilters] = useState<Record<string, any>>({});
   const [showHeaderFilters, setShowHeaderFilters] = useState(false);
+
+  // Responsive column configuration
+  const getResponsiveColumns = useCallback(() => {
+    if (isMobile) {
+      return columns.filter(
+        (col) =>
+          ![
+            "select",
+            "expand",
+            "company",
+            "probability",
+            "source",
+            "actions",
+          ].includes(col.key)
+      );
+    } else if (isTablet) {
+      return columns.filter(
+        (col) => !["select", "expand", "source"].includes(col.key)
+      );
+    }
+    return columns;
+  }, [columns, isMobile, isTablet]);
+
+  const responsiveColumns = getResponsiveColumns();
 
   // Load saved state from localStorage on component mount
   useEffect(() => {
@@ -200,6 +246,43 @@ function DealsTableCore() {
 
     setDeals((prev) => [newDeal, ...prev]);
     setShowNewDealModal(false);
+  }, []);
+
+  // Handle activity addition
+  const handleActivityAdd = useCallback((dealId: string, activity: any) => {
+    setDeals((prev) =>
+      prev.map((deal) =>
+        deal.id === dealId
+          ? {
+              ...deal,
+              activities: [...(deal.activities || []), activity],
+              lastActivity: new Date().toISOString().split("T")[0],
+            }
+          : deal
+      )
+    );
+  }, []);
+
+  // Handle file upload
+  const handleFileUpload = useCallback((dealId: string, file: File) => {
+    const newFile = {
+      id: Date.now(),
+      name: file.name,
+      size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+      type: file.name.split(".").pop() || "file",
+      file: file,
+    };
+
+    setDeals((prev) =>
+      prev.map((deal) =>
+        deal.id === dealId
+          ? {
+              ...deal,
+              files: [...(deal.files || []), newFile],
+            }
+          : deal
+      )
+    );
   }, []);
 
   const handleBulkDelete = useCallback(() => {
@@ -1141,24 +1224,32 @@ function DealsTableCore() {
 
       switch (e.key) {
         case "ArrowUp":
+          // Disable keyboard shortcuts on mobile/tablet
+          if (isMobile || isTablet) break;
           e.preventDefault();
           if (rowIndex > 0) {
             setFocusedCell({ rowIndex: rowIndex - 1, colIndex });
           }
           break;
         case "ArrowDown":
+          // Disable keyboard shortcuts on mobile/tablet
+          if (isMobile || isTablet) break;
           e.preventDefault();
           if (rowIndex < totalRows - 1) {
             setFocusedCell({ rowIndex: rowIndex + 1, colIndex });
           }
           break;
         case "ArrowLeft":
+          // Disable keyboard shortcuts on mobile/tablet
+          if (isMobile || isTablet) break;
           e.preventDefault();
           if (colIndex > 0) {
             setFocusedCell({ rowIndex, colIndex: colIndex - 1 });
           }
           break;
         case "ArrowRight":
+          // Disable keyboard shortcuts on mobile/tablet
+          if (isMobile || isTablet) break;
           e.preventDefault();
           if (colIndex < totalCols - 1) {
             setFocusedCell({ rowIndex, colIndex: colIndex + 1 });
@@ -1256,11 +1347,14 @@ function DealsTableCore() {
 
   const handleColumnDragStart = useCallback(
     (e: React.DragEvent, columnKey: string) => {
+      // Disable drag-and-drop on mobile/tablet
+      if (!showDragDrop) return;
+
       e.dataTransfer.effectAllowed = "move";
       e.dataTransfer.setData("text/plain", columnKey);
       setDraggingColumn(columnKey);
     },
-    []
+    [showDragDrop]
   );
 
   const handleColumnDragOver = useCallback(
@@ -1310,6 +1404,9 @@ function DealsTableCore() {
   // Row drag and drop functionality
   const handleRowDragStart = useCallback(
     (e: React.DragEvent, dealId: string) => {
+      // Disable drag-and-drop on mobile/tablet
+      if (!showDragDrop) return;
+
       e.dataTransfer.effectAllowed = "move";
       e.dataTransfer.setData("text/plain", dealId);
       setDraggingRow(dealId);
@@ -1319,7 +1416,7 @@ function DealsTableCore() {
       target.style.opacity = "0.5";
       target.style.transform = "rotate(1deg)";
     },
-    []
+    [showDragDrop]
   );
 
   const handleRowDragOver = useCallback(
@@ -1509,14 +1606,26 @@ function DealsTableCore() {
         clearHeaderFilters={clearHeaderFilters}
         ThemeToggle={ThemeToggle}
         TableFilters={TableFilters}
+        columns={columns}
+        setColumns={setColumns}
+        onColumnHide={handleColumnHide}
+        onColumnMove={handleColumnMove}
       />
       {/* Table Section */}
       <div className="flex-1 w-full pt-6">
         <div className="relative shadow-xl overflow-x-auto bg-card border border-border">
-          <table className="w-full min-w-[900px] text-sm">
+          <table
+            className={`w-full text-sm ${
+              isMobile
+                ? "min-w-[600px]"
+                : isTablet
+                ? "min-w-[800px]"
+                : "min-w-[900px]"
+            }`}
+          >
             <thead className="sticky top-0 z-20 bg-background border-b border-border">
               <tr>
-                {visibleColumnsWithActions.map((column, colIndex) => (
+                {responsiveColumns.map((column, colIndex) => (
                   <th
                     key={column.key}
                     className={`text-left p-4 font-semibold text-foreground border-r border-border last:border-r-0 whitespace-nowrap select-none bg-background ${getDragDropClasses(
@@ -1528,14 +1637,27 @@ function DealsTableCore() {
                     }}
                     onClick={() => handleCellFocus(0, colIndex)}
                     draggable={
+                      showDragDrop &&
                       column.key !== "select" &&
                       column.key !== "expand" &&
                       column.key !== "actions"
                     }
-                    onDragStart={(e) => handleColumnDragStart(e, column.key)}
-                    onDragOver={(e) => handleColumnDragOver(e, column.key)}
-                    onDrop={(e) => handleColumnDrop(e, column.key)}
-                    onDragEnd={handleColumnDragEnd}
+                    onDragStart={
+                      showDragDrop
+                        ? (e) => handleColumnDragStart(e, column.key)
+                        : undefined
+                    }
+                    onDragOver={
+                      showDragDrop
+                        ? (e) => handleColumnDragOver(e, column.key)
+                        : undefined
+                    }
+                    onDrop={
+                      showDragDrop
+                        ? (e) => handleColumnDrop(e, column.key)
+                        : undefined
+                    }
+                    onDragEnd={showDragDrop ? handleColumnDragEnd : undefined}
                   >
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-2">
@@ -1582,13 +1704,15 @@ function DealsTableCore() {
                               )}
                             </button>
                             {/* Resize handle */}
-                            <div
-                              className={getResizeHandleClasses(column.key)}
-                              onMouseDown={(e) =>
-                                handleResizeStart(e, column.key)
-                              }
-                              title="Drag to resize column"
-                            />
+                            {showDragDrop && (
+                              <div
+                                className={getResizeHandleClasses(column.key)}
+                                onMouseDown={(e) =>
+                                  handleResizeStart(e, column.key)
+                                }
+                                title="Drag to resize column"
+                              />
+                            )}
                           </div>
                         )}
                       </div>
@@ -1635,7 +1759,7 @@ function DealsTableCore() {
             </thead>
             <DealsTableBody
               deals={filteredAndSortedDeals}
-              columns={visibleColumns}
+              columns={responsiveColumns}
               selectedRows={selectedRows}
               expandedRows={expandedRows}
               rowDeleteConfirm={rowDeleteConfirm}
@@ -1667,11 +1791,27 @@ function DealsTableCore() {
               }
               onKeyDown={handleKeyDown}
               onCellFocus={handleCellFocus}
-              onRowDragStart={(e, deal) => handleRowDragStart(e, deal.id)}
-              onRowDragOver={(e, deal) => handleRowDragOver(e, deal.id)}
-              onRowDrop={(e, deal) => handleRowDrop(e, deal.id)}
-              onRowDragEnd={handleRowDragEnd}
-              getRowDragDropClasses={getRowDragDropClasses}
+              onRowDragStart={
+                showDragDrop
+                  ? (e, deal) => handleRowDragStart(e, deal.id)
+                  : undefined
+              }
+              onRowDragOver={
+                showDragDrop
+                  ? (e, deal) => handleRowDragOver(e, deal.id)
+                  : undefined
+              }
+              onRowDrop={
+                showDragDrop
+                  ? (e, deal) => handleRowDrop(e, deal.id)
+                  : undefined
+              }
+              onRowDragEnd={showDragDrop ? handleRowDragEnd : undefined}
+              getRowDragDropClasses={
+                showDragDrop ? getRowDragDropClasses : () => ""
+              }
+              onActivityAdd={handleActivityAdd}
+              onFileUpload={handleFileUpload}
             />
           </table>
           {filteredAndSortedDeals.length === 0 && (
@@ -1751,13 +1891,13 @@ function DealsTableCore() {
       {/* Modal for New Deal */}
       {showNewDealModal && (
         <div className="fixed inset-0 bg-black/40 dark:bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-card dark:bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-border animate-in fade-in-0 zoom-in-95 duration-200">
-            <div className="p-6 border-b border-border">
-              <h2 className="text-xl font-bold text-foreground">
+          <div className="bg-card dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto border border-border animate-in fade-in-0 zoom-in-95 duration-200">
+            <div className="p-4 sm:p-6 border-b border-border">
+              <h2 className="text-lg sm:text-xl font-bold text-foreground">
                 Create New Deal
               </h2>
             </div>
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <NewDealForm
                 onSubmit={handleCreateDeal}
                 onCancel={() => setShowNewDealModal(false)}
@@ -1770,7 +1910,7 @@ function DealsTableCore() {
       {/* Bulk Action Bar - visually prominent, animated, with confirmation bar */}
       {selectedRows.size > 0 && !showDeleteConfirm && (
         <div className="fixed left-0 right-0 top-20 z-40 flex justify-center animate-in fade-in-0 slide-in-from-top-4 duration-200">
-          <div className="bg-gradient-to-r from-red-50 to-slate-100 dark:from-red-900/60 dark:to-slate-800/80 border border-red-200 dark:border-red-700 rounded-xl shadow-2xl px-8 py-4 flex items-center gap-6 max-w-2xl w-full mx-4">
+          <div className="bg-gradient-to-r from-red-50 to-slate-100 dark:from-red-900/60 dark:to-slate-800/80 border border-red-200 dark:border-red-700 rounded-xl shadow-2xl px-4 sm:px-8 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 max-w-2xl w-full mx-4">
             <div className="flex items-center gap-3">
               <span className="text-base font-semibold text-foreground">
                 {selectedRows.size} deal{selectedRows.size !== 1 ? "s" : ""}{" "}
@@ -1789,7 +1929,7 @@ function DealsTableCore() {
                 total
               </Badge>
             </div>
-            <div className="flex items-center gap-2 ml-auto">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto">
               <Button
                 variant="outline"
                 size="sm"
@@ -1841,13 +1981,13 @@ function DealsTableCore() {
       {/* Custom Delete Confirmation Bar */}
       {selectedRows.size > 0 && showDeleteConfirm && (
         <div className="fixed left-0 right-0 top-20 z-50 flex justify-center animate-in fade-in-0 slide-in-from-top-4 duration-200">
-          <div className="bg-red-100 dark:bg-red-900/80 border border-red-300 dark:border-red-700 rounded-xl shadow-2xl px-8 py-4 flex items-center gap-6 max-w-2xl w-full mx-4">
+          <div className="bg-red-100 dark:bg-red-900/80 border border-red-300 dark:border-red-700 rounded-xl shadow-2xl px-4 sm:px-8 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 max-w-2xl w-full mx-4">
             <span className="text-base font-semibold text-red-800 dark:text-red-200">
               Are you sure you want to delete {selectedRows.size} deal
               {selectedRows.size !== 1 ? "s" : ""}? This action cannot be
               undone.
             </span>
-            <div className="flex items-center gap-2 ml-auto">
+            <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
               <Button
                 variant="outline"
                 size="sm"

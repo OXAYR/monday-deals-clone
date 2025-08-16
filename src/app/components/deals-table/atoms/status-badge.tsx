@@ -1,10 +1,3 @@
-/**
- * Status Badge Atom
- * Reusable badge component for displaying deal stages and priorities
- * Pure Tailwind CSS implementation without shadcn dependencies
- *
- * @format
- */
 
 import { cn } from "../../../lib/utils";
 
