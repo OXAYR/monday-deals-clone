@@ -2,7 +2,6 @@
 
 import React, { useState, useRef } from "react";
 import { format } from "date-fns";
-import { Badge } from "../atoms/badge";
 import { Button } from "../atoms/button";
 import {
   CalendarIcon,
