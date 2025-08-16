@@ -1,10 +1,4 @@
-/**
- * Theme Management Hook
- * Provides dark/light mode functionality with system preference detection
- * Built with React best practices for state management
- *
- * @format
- */
+/** @format */
 
 "use client";
 
