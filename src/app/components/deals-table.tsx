@@ -49,6 +49,16 @@ import {
   calculateTotals,
   getUniqueValues,
 } from "./deals-table/services/deal-table.service";
+import HelpTooltip from "./deals-table/atoms/help-tooltip";
+import TotalsBar from "./deals-table/molecules/totals-bar";
+import DragIndicator from "./deals-table/atoms/drag-indicator";
+import FilterStatusIndicator from "./deals-table/molecules/filter-status-indicator";
+import SortStatusIndicator from "./deals-table/molecules/sort-status-indicator";
+import ContextMenu from "./deals-table/molecules/context-menu";
+import { DeleteConfirmDialog } from "./deals-table/molecules/delete-confirmation-dialog";
+import { BulkActionsToolbar } from "./deals-table/organisms/bulk-action-bar";
+import { NoDealsFound } from "./deals-table/molecules/no-deal-found";
+import { DealsTableHeaderCell } from "./deals-table/organisms/deals-table-header";
 
 /**
  * Main Deals Table Component
@@ -1583,6 +1593,15 @@ function DealsTableCore() {
     }
   }, []);
 
+  const totalBarData = {
+    totalDeals: 120,
+    totalValue: 450000,
+    weightedValue: 320000.75,
+    avgProbability: 67.8,
+    wonDeals: 45,
+    lostDeals: 30,
+  };
+
   return (
     <div className="w-full min-h-screen  flex flex-col transition-colors duration-200">
       <DealsTableTopBar
@@ -1620,135 +1639,37 @@ function DealsTableCore() {
             <thead className="sticky top-0 z-20 bg-background border-b border-border">
               <tr>
                 {responsiveColumns.map((column, colIndex) => (
-                  <th
+                  <DealsTableHeaderCell
                     key={column.key}
-                    className={`text-left p-4 font-semibold text-foreground border-r border-border last:border-r-0 whitespace-nowrap select-none bg-background ${getDragDropClasses(
-                      column.key
-                    )}`}
-                    style={{
-                      width: `${column.width}px`,
-                      minWidth: `${column.minWidth}px`,
-                    }}
-                    onClick={() => handleCellFocus(0, colIndex)}
-                    draggable={
-                      showDragDrop &&
-                      column.key !== "select" &&
-                      column.key !== "expand" &&
-                      column.key !== "actions"
-                    }
-                    onDragStart={
-                      showDragDrop
-                        ? (e) => handleColumnDragStart(e, column.key)
-                        : undefined
-                    }
-                    onDragOver={
-                      showDragDrop
-                        ? (e) => handleColumnDragOver(e, column.key)
-                        : undefined
-                    }
-                    onDrop={
-                      showDragDrop
-                        ? (e) => handleColumnDrop(e, column.key)
-                        : undefined
-                    }
-                    onDragEnd={showDragDrop ? handleColumnDragEnd : undefined}
-                  >
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center gap-2">
-                        {column.key === "select" ? (
-                          <Checkbox
-                            checked={isAllSelected}
-                            indeterminate={isIndeterminate}
-                            onCheckedChange={handleSelectAll}
-                          />
-                        ) : column.key === "expand" ? (
-                          <span></span>
-                        ) : column.key === "actions" ? (
-                          <span>Actions</span>
-                        ) : (
-                          <div className="flex items-center gap-1 w-full">
-                            <button
-                              className={`${getSortButtonClass(column.key)} ${
-                                draggingColumn === column.key
-                                  ? "cursor-grabbing"
-                                  : "cursor-grab"
-                              }`}
-                              onClick={(e) => handleColumnClick(e, column.key)}
-                              onContextMenu={(e) =>
-                                handleContextMenu(e, "header", column)
-                              }
-                              title={`${getSortTooltip(column.key)}${
-                                draggingColumn ? "" : " - Drag to reorder"
-                              }`}
-                            >
-                              <span className="truncate text-base font-semibold">
-                                {column.label}
-                              </span>
-                              {getSortIcon(column.key)}
-                              {getSortPriority(column.key) && (
-                                <Badge
-                                  variant="secondary"
-                                  size="sm"
-                                  className="ml-1 bg-primary/10 text-primary border-primary/20"
-                                >
-                                  {getSortPriority(column.key)}
-                                </Badge>
-                              )}
-                            </button>
-                            {/* Resize handle */}
-                            {showDragDrop && (
-                              <div
-                                className={getResizeHandleClasses(column.key)}
-                                onMouseDown={(e) =>
-                                  handleResizeStart(e, column.key)
-                                }
-                                title="Drag to resize column"
-                              />
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      {/* Header Filter Row */}
-                      {showHeaderFilters &&
-                        column.key !== "select" &&
-                        column.key !== "expand" &&
-                        column.key !== "actions" && (
-                          <div className="flex items-center gap-1">
-                            <div className="relative flex-1">
-                              <input
-                                type="text"
-                                placeholder={`Filter ${column.label}...`}
-                                value={getHeaderFilterValue(column.key)}
-                                onChange={(e) =>
-                                  handleHeaderFilterChange(
-                                    column.key,
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full px-2 py-1 text-xs bg-background border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
-                              />
-                              {getHeaderFilterValue(column.key) && (
-                                <button
-                                  onClick={() =>
-                                    handleHeaderFilterChange(column.key, "")
-                                  }
-                                  className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                                  title="Clear filter"
-                                >
-                                  ×
-                                </button>
-                              )}
-                            </div>
-                            {getHeaderFilterValue(column.key) && (
-                              <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
-                            )}
-                          </div>
-                        )}
-                    </div>
-                  </th>
+                    column={column}
+                    colIndex={colIndex}
+                    isAllSelected={isAllSelected}
+                    isIndeterminate={isIndeterminate}
+                    draggingColumn={draggingColumn}
+                    showDragDrop={showDragDrop}
+                    showHeaderFilters={showHeaderFilters}
+                    getDragDropClasses={getDragDropClasses}
+                    handleCellFocus={handleCellFocus}
+                    handleColumnDragStart={handleColumnDragStart}
+                    handleColumnDragOver={handleColumnDragOver}
+                    handleColumnDrop={handleColumnDrop}
+                    handleColumnDragEnd={handleColumnDragEnd}
+                    handleColumnClick={handleColumnClick}
+                    handleContextMenu={handleContextMenu}
+                    handleSelectAll={handleSelectAll}
+                    handleResizeStart={handleResizeStart}
+                    handleHeaderFilterChange={handleHeaderFilterChange}
+                    getSortButtonClass={getSortButtonClass}
+                    getSortTooltip={getSortTooltip}
+                    getSortIcon={getSortIcon}
+                    getSortPriority={getSortPriority}
+                    getResizeHandleClasses={getResizeHandleClasses}
+                    getHeaderFilterValue={getHeaderFilterValue}
+                  />
                 ))}
               </tr>
             </thead>
+
             <DealsTableBody
               deals={filteredAndSortedDeals}
               columns={responsiveColumns}
@@ -1807,76 +1728,45 @@ function DealsTableCore() {
             />
           </table>
           {filteredAndSortedDeals.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-12 px-4">
-              <div className="text-muted-foreground mb-4">
-                <SearchIcon className="h-12 w-12" />
-              </div>
-              <h3 className="text-lg font-medium text-foreground mb-2">
-                No deals found
-              </h3>
-              <p className="text-sm text-muted-foreground text-center max-w-md">
-                {filters.searchTerm ||
-                filters.stages.length > 0 ||
-                filters.priorities.length > 0
-                  ? "Try adjusting your search or filters to find what you're looking for."
-                  : "Get started by creating your first deal."}
-              </p>
-              <Button
-                variant="default"
-                size="sm"
-                className="mt-4 shadow-md"
-                onClick={() => setShowNewDealModal(true)}
-              >
-                <PlusIcon className="h-4 w-4 mr-2" />
-                Create Deal
-              </Button>
-            </div>
+            <NoDealsFound
+              filters={filters}
+              onCreateDeal={() => setShowNewDealModal(true)}
+            />
           )}
           {/* Pinned Totals Bar */}
-          <div className="sticky bottom-0 left-0 right-0 z-30 bg-background/95 border-t border-border px-4 py-4 sm:px-8 shadow-inner">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-foreground drop-shadow-sm">
-                  {totalsData.totalDeals}
-                </div>
-                <div className="text-sm text-muted-foreground">Total Deals</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary drop-shadow-sm">
-                  ${totalsData.totalValue.toLocaleString()}
-                </div>
-                <div className="text-sm text-muted-foreground">Total Value</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary drop-shadow-sm">
-                  ${Math.round(totalsData.weightedValue).toLocaleString()}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  Weighted Value
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary drop-shadow-sm">
-                  {Math.round(totalsData.avgProbability)}%
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  Avg Probability
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 drop-shadow-sm">
-                  {totalsData.wonDeals}
-                </div>
-                <div className="text-sm text-muted-foreground">Won</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-red-600 dark:text-red-400 drop-shadow-sm">
-                  {totalsData.lostDeals}
-                </div>
-                <div className="text-sm text-muted-foreground">Lost</div>
-              </div>
-            </div>
-          </div>
+          <TotalsBar
+            stats={[
+              { label: "Total Deals", value: totalBarData.totalDeals },
+              {
+                label: "Total Value",
+                value: totalBarData.totalValue,
+                format: "currency",
+                className: "text-primary",
+              },
+              {
+                label: "Weighted Value",
+                value: totalBarData.weightedValue,
+                format: "currency",
+                className: "text-primary",
+              },
+              {
+                label: "Avg Probability",
+                value: totalBarData.avgProbability,
+                format: "percent",
+                className: "text-primary",
+              },
+              {
+                label: "Won",
+                value: totalBarData.wonDeals,
+                className: "text-emerald-600 dark:text-emerald-400",
+              },
+              {
+                label: "Lost",
+                value: totalBarData.lostDeals,
+                className: "text-red-600 dark:text-red-400",
+              },
+            ]}
+          />
         </div>
       </div>
 
@@ -1901,230 +1791,42 @@ function DealsTableCore() {
 
       {/* Bulk Action Bar - visually prominent, animated, with confirmation bar */}
       {selectedRows.size > 0 && !showDeleteConfirm && (
-        <div className="fixed left-0 right-0 top-20 z-40 flex justify-center animate-in fade-in-0 slide-in-from-top-4 duration-200">
-          <div className="bg-gradient-to-r from-red-50 to-slate-100 dark:from-red-900/60 dark:to-slate-800/80 border border-red-200 dark:border-red-700 rounded-xl shadow-2xl px-4 sm:px-8 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 max-w-2xl w-full mx-4">
-            <div className="flex items-center gap-3">
-              <span className="text-base font-semibold text-foreground">
-                {selectedRows.size} deal{selectedRows.size !== 1 ? "s" : ""}{" "}
-                selected
-              </span>
-              <Badge variant="secondary" size="sm">
-                $
-                {filteredAndSortedDeals
-                  .filter((deal) => selectedRows.has(deal.id))
-                  .reduce(
-                    (sum, deal) =>
-                      sum + Number.parseFloat(deal.amount.replace(/[$,]/g, "")),
-                    0
-                  )
-                  .toLocaleString()}{" "}
-                total
-              </Badge>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleBulkAction("duplicate")}
-                className="hover:bg-slate-200 dark:hover:bg-slate-700"
-              >
-                <CopyIcon className="h-4 w-4 mr-2" />
-                Duplicate
-              </Button>
-              <Select
-                placeholder="Change Stage"
-                options={stageOptions}
-                onValueChange={(value) =>
-                  handleBulkAction("changeStage", value)
-                }
-                className="w-32"
-              />
-              <Select
-                placeholder="Change Priority"
-                options={priorityOptions}
-                onValueChange={(value) =>
-                  handleBulkAction("changePriority", value)
-                }
-                className="w-32"
-              />
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => handleBulkAction("delete")}
-                className="hover:bg-red-600 hover:text-white transition-colors"
-              >
-                <TrashIcon className="h-4 w-4 mr-2" />
-                Delete
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleBulkAction("export")}
-                className="hover:bg-slate-200 dark:hover:bg-slate-700"
-              >
-                <DownloadIcon className="h-4 w-4 mr-2" />
-                Export CSV
-              </Button>
-            </div>
-          </div>
-        </div>
+        <BulkActionsToolbar
+          selectedCount={selectedRows.size}
+          selectedDeals={filteredAndSortedDeals.filter((deal) =>
+            selectedRows.has(deal.id)
+          )}
+          stageOptions={stageOptions}
+          priorityOptions={priorityOptions}
+          onBulkAction={handleBulkAction}
+        />
       )}
 
       {/* Custom Delete Confirmation Bar */}
       {selectedRows.size > 0 && showDeleteConfirm && (
-        <div className="fixed left-0 right-0 top-20 z-50 flex justify-center animate-in fade-in-0 slide-in-from-top-4 duration-200">
-          <div className="bg-red-100 dark:bg-red-900/80 border border-red-300 dark:border-red-700 rounded-xl shadow-2xl px-4 sm:px-8 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 max-w-2xl w-full mx-4">
-            <span className="text-base font-semibold text-red-800 dark:text-red-200">
-              Are you sure you want to delete {selectedRows.size} deal
-              {selectedRows.size !== 1 ? "s" : ""}? This action cannot be
-              undone.
-            </span>
-            <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowDeleteConfirm(false)}
-                className="hover:bg-slate-200 dark:hover:bg-slate-700"
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => {
-                  handleBulkDelete();
-                  setShowDeleteConfirm(false);
-                }}
-                className="hover:bg-red-600 hover:text-white transition-colors"
-              >
-                <TrashIcon className="h-4 w-4 mr-2" />
-                Confirm Delete
-              </Button>
-            </div>
-          </div>
-        </div>
+        <DeleteConfirmDialog
+          open={showDeleteConfirm}
+          count={selectedRows.size}
+          onCancel={() => setShowDeleteConfirm(false)}
+          onConfirm={() => {
+            handleBulkDelete();
+            setShowDeleteConfirm(false);
+          }}
+        />
       )}
 
       {/* Context Menu */}
       {contextMenu && (
-        <div
-          className="fixed z-50 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[200px] animate-in fade-in-0 zoom-in-95 duration-100"
-          style={{
-            left: contextMenu.x,
-            top: contextMenu.y,
-          }}
-          role="menu"
-          tabIndex={-1}
-        >
-          {contextMenu.type === "header" ? (
-            <>
-              <div className="px-3 py-2 border-b border-border">
-                <h4 className="text-sm font-semibold text-foreground">
-                  {contextMenu.target.label} Column
-                </h4>
-              </div>
-              <button
-                className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors focus:bg-muted focus:outline-none"
-                onClick={() => handleColumnHide(contextMenu.target.key)}
-                role="menuitem"
-              >
-                <span className="flex items-center gap-2">
-                  <EyeOffIcon className="h-4 w-4" />
-                  Hide Column
-                </span>
-              </button>
-              <button
-                className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors focus:bg-muted focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={() => handleColumnMove(contextMenu.target.key, "left")}
-                disabled={
-                  columns.findIndex(
-                    (col) => col.key === contextMenu.target.key
-                  ) === 0
-                }
-                role="menuitem"
-              >
-                <span className="flex items-center gap-2">
-                  <ChevronLeftIcon className="h-4 w-4" />
-                  Move Left
-                </span>
-              </button>
-              <button
-                className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors focus:bg-muted focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={() =>
-                  handleColumnMove(contextMenu.target.key, "right")
-                }
-                disabled={
-                  columns.findIndex(
-                    (col) => col.key === contextMenu.target.key
-                  ) ===
-                  columns.length - 1
-                }
-                role="menuitem"
-              >
-                <span className="flex items-center gap-2">
-                  <ChevronRightIcon className="h-4 w-4" />
-                  Move Right
-                </span>
-              </button>
-              <div className="border-t border-border my-1" />
-              <button
-                className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors focus:bg-muted focus:outline-none"
-                onClick={() => {
-                  // TODO: Implement column settings
-                  closeContextMenu();
-                }}
-                role="menuitem"
-              >
-                <span className="flex items-center gap-2">
-                  <SettingsIcon className="h-4 w-4" />
-                  Column Settings
-                </span>
-              </button>
-            </>
-          ) : (
-            <>
-              <div className="px-3 py-2 border-b border-border">
-                <h4 className="text-sm font-semibold text-foreground">
-                  {contextMenu.target.name}
-                </h4>
-                <p className="text-xs text-muted-foreground">
-                  {contextMenu.target.company} • {contextMenu.target.amount}
-                </p>
-              </div>
-              <button
-                className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors focus:bg-muted focus:outline-none"
-                onClick={() => handleRowEdit(contextMenu.target.id)}
-                role="menuitem"
-              >
-                <span className="flex items-center gap-2">
-                  <EditIcon className="h-4 w-4" />
-                  Edit Deal
-                </span>
-              </button>
-              <button
-                className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors focus:bg-muted focus:outline-none"
-                onClick={() => handleRowDuplicate(contextMenu.target.id)}
-                role="menuitem"
-              >
-                <span className="flex items-center gap-2">
-                  <CopyIcon className="h-4 w-4" />
-                  Duplicate Deal
-                </span>
-              </button>
-              <div className="border-t border-border my-1" />
-              <button
-                className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors focus:bg-destructive/10 focus:outline-none"
-                onClick={() => handleRowDelete(contextMenu.target.id)}
-                role="menuitem"
-              >
-                <span className="flex items-center gap-2">
-                  <TrashIcon className="h-4 w-4" />
-                  Delete Deal
-                </span>
-              </button>
-            </>
-          )}
-        </div>
+        <ContextMenu
+          contextMenu={contextMenu}
+          columns={columns}
+          onClose={closeContextMenu}
+          onColumnHide={handleColumnHide}
+          onColumnMove={handleColumnMove}
+          onRowEdit={handleRowEdit as (id: string | number) => void}
+          onRowDuplicate={handleRowDuplicate as (id: string | number) => void}
+          onRowDelete={handleRowDelete as (id: string | number) => void}
+        />
       )}
 
       {/* Click outside to close context menu */}
@@ -2138,120 +1840,85 @@ function DealsTableCore() {
 
       {/* Sort Status Indicator */}
       {sortConfigs.length > 0 && (
-        <div className="fixed bottom-4 left-4 z-30">
-          <div className="bg-card border border-border rounded-lg shadow-lg p-3 text-xs">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-foreground">Sort:</span>
-              <span className="text-muted-foreground">
-                {getSortIndicatorText()}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearAllSorts}
-                className="h-6 px-2 text-xs hover:bg-muted"
-              >
-                Clear
-              </Button>
-            </div>
-          </div>
-        </div>
+        <SortStatusIndicator
+          sortText={getSortIndicatorText()}
+          onClear={clearAllSorts}
+        />
       )}
 
       {/* Header Filter Status Indicator */}
       {hasActiveHeaderFilters() && (
-        <div
-          className="fixed bottom-4 left-4 z-30"
-          style={{ top: sortConfigs.length > 0 ? "calc(4rem + 60px)" : "1rem" }}
-        >
-          <div className="bg-card border border-border rounded-lg shadow-lg p-3 text-xs">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-foreground">Filters:</span>
-              <span className="text-muted-foreground">
-                {getActiveFilterCount()} active header filter
-                {getActiveFilterCount() !== 1 ? "s" : ""}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearHeaderFilters}
-                className="h-6 px-2 text-xs hover:bg-muted"
-              >
-                Clear All
-              </Button>
-            </div>
-          </div>
-        </div>
+        <FilterStatusIndicator
+          activeFilterCount={getActiveFilterCount()}
+          onClear={clearHeaderFilters}
+          sortCount={sortConfigs.length}
+        />
       )}
 
-      {/* Drag and Drop Visual Indicator */}
       {draggingColumn && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50">
-          <div className="bg-primary/90 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium animate-in fade-in-0 slide-in-from-top-2 duration-200">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-              Dragging column:{" "}
-              {columns.find((col) => col.key === draggingColumn)?.label}
-            </div>
-          </div>
-        </div>
+        <DragIndicator
+          type="column"
+          label={columns.find((col) => col.key === draggingColumn)?.label ?? ""}
+        />
       )}
 
-      {/* Row Drag Visual Indicator */}
       {draggingRow && (
-        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-50">
-          <div className="bg-primary/90 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium animate-in fade-in-0 slide-in-from-top-2 duration-200">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-              Dragging deal:{" "}
-              {deals.find((deal) => deal.id === draggingRow)?.name}
-            </div>
-          </div>
-        </div>
+        <DragIndicator
+          type="row"
+          label={deals.find((deal) => deal.id === draggingRow)?.name ?? ""}
+        />
       )}
 
-      {/* Resize Visual Indicator */}
       {resizingColumn && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50">
-          <div className="bg-primary/90 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium animate-in fade-in-0 slide-in-from-top-2 duration-200">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-              Resizing:{" "}
-              {columns.find((col) => col.key === resizingColumn)?.label}(
-              {columns.find((col) => col.key === resizingColumn)?.width}px)
-            </div>
-          </div>
-        </div>
+        <DragIndicator
+          type="resize"
+          label={columns.find((col) => col.key === resizingColumn)?.label ?? ""}
+          subLabel={`${
+            columns.find((col) => col.key === resizingColumn)?.width
+          }px`}
+        />
       )}
 
       {/* Keyboard navigation help tooltip */}
-      <div className="fixed bottom-4 right-4 z-30">
-        <div className="bg-card border border-border rounded-lg shadow-lg p-3 text-xs text-muted-foreground">
-          <div className="font-semibold mb-1">Keyboard Shortcuts:</div>
-          <div>↑↓←→ Navigate cells</div>
-          <div>Enter Edit cell</div>
-          <div>Esc Cancel edit</div>
-          <div>Ctrl/Cmd+Click Multi-select</div>
-          <div>Shift+Click Range select</div>
-          <div>Ctrl/Cmd+A Select All</div>
-          <div>Escape Deselect All</div>
-          <div className="mt-2 font-semibold">Table Features:</div>
-          <div>• Drag column headers to reorder</div>
-          <div>• Drag table rows to reorder deals</div>
-          <div>• Drag resize handles to resize</div>
-          <div>• Right-click for context menus</div>
-          <div>• Header filters for quick search</div>
-          <div>• Shift+Click for multi-column sort</div>
-          <div>• Ctrl+F to focus header filters</div>
-          <div>• Ctrl+A to select all deals</div>
-          <div>• Escape to deselect all</div>
-          <div className="mt-2 font-semibold">Drag & Drop:</div>
-          <div>• Grab column headers to reorder</div>
-          <div>• Grab table rows to reorder deals</div>
-          <div>• Drag resize handles to adjust width</div>
-          <div>• Visual feedback shows drop zones</div>
-        </div>
-      </div>
+      <HelpTooltip
+        sections={[
+          {
+            title: "Keyboard Shortcuts:",
+            items: [
+              "↑↓←→ Navigate cells",
+              "Enter Edit cell",
+              "Esc Cancel edit",
+              "Ctrl/Cmd+Click Multi-select",
+              "Shift+Click Range select",
+              "Ctrl/Cmd+A Select All",
+              "Escape Deselect All",
+            ],
+          },
+          {
+            title: "Table Features:",
+            items: [
+              "• Drag column headers to reorder",
+              "• Drag table rows to reorder deals",
+              "• Drag resize handles to resize",
+              "• Right-click for context menus",
+              "• Header filters for quick search",
+              "• Shift+Click for multi-column sort",
+              "• Ctrl+F to focus header filters",
+              "• Ctrl+A to select all deals",
+              "• Escape to deselect all",
+            ],
+          },
+          {
+            title: "Drag & Drop:",
+            items: [
+              "• Grab column headers to reorder",
+              "• Grab table rows to reorder deals",
+              "• Drag resize handles to adjust width",
+              "• Visual feedback shows drop zones",
+            ],
+          },
+        ]}
+      />
     </div>
   );
 }

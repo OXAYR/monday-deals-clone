@@ -114,185 +114,137 @@ export function NewDealForm({ onSubmit, onCancel }: NewDealFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-        <div className="space-y-2">
-          <label htmlFor="name" className="text-sm font-medium text-foreground">
-            Deal Name *
-          </label>
-          <input
-            type="text"
-            id="name"
-            name="name"
-            required
-            className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            placeholder="Enter deal name"
-          />
-        </div>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+          Deal Name *
+        </label>
+        <Input
+          value={formData.name}
+          onChange={(e) => updateField("name", e.target.value)}
+          placeholder="Enter deal name"
+          className={errors.name ? "border-red-500" : ""}
+        />
+        {errors.name && (
+          <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+            {errors.name}
+          </p>
+        )}
+      </div>
 
-        <div className="space-y-2">
-          <label
-            htmlFor="company"
-            className="text-sm font-medium text-foreground"
-          >
-            Company *
-          </label>
-          <input
-            type="text"
-            id="company"
-            name="company"
-            required
-            className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            placeholder="Enter company name"
-          />
-        </div>
+      <div>
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+          Company *
+        </label>
+        <Input
+          value={formData.company}
+          onChange={(e) => updateField("company", e.target.value)}
+          placeholder="Enter company name"
+          className={errors.company ? "border-red-500" : ""}
+        />
+        {errors.company && (
+          <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+            {errors.company}
+          </p>
+        )}
+      </div>
 
-        <div className="space-y-2">
-          <label
-            htmlFor="amount"
-            className="text-sm font-medium text-foreground"
-          >
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
             Amount *
           </label>
-          <input
-            type="text"
-            id="amount"
-            name="amount"
-            required
-            className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            placeholder="$0"
+          <Input
+            value={formData.amount}
+            onChange={(e) => updateField("amount", e.target.value)}
+            placeholder="$10,000"
+            className={errors.amount ? "border-red-500" : ""}
           />
+          {errors.amount && (
+            <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+              {errors.amount}
+            </p>
+          )}
         </div>
 
-        <div className="space-y-2">
-          <label
-            htmlFor="stage"
-            className="text-sm font-medium text-foreground"
-          >
-            Stage *
+        <div>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+            Probability (%)
           </label>
-          <select
-            id="stage"
-            name="stage"
-            required
-            className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option value="">Select stage</option>
-            <option value="New">New</option>
-            <option value="Qualified">Qualified</option>
-            <option value="Proposal">Proposal</option>
-            <option value="Negotiation">Negotiation</option>
-            <option value="Won">Won</option>
-            <option value="Lost">Lost</option>
-          </select>
-        </div>
-
-        <div className="space-y-2">
-          <label
-            htmlFor="priority"
-            className="text-sm font-medium text-foreground"
-          >
-            Priority *
-          </label>
-          <select
-            id="priority"
-            name="priority"
-            required
-            className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option value="">Select priority</option>
-            <option value="Low">Low</option>
-            <option value="Medium">Medium</option>
-            <option value="High">High</option>
-            <option value="Urgent">Urgent</option>
-          </select>
-        </div>
-
-        <div className="space-y-2">
-          <label
-            htmlFor="probability"
-            className="text-sm font-medium text-foreground"
-          >
-            Probability (%) *
-          </label>
-          <input
+          <Input
             type="number"
-            id="probability"
-            name="probability"
             min="0"
             max="100"
-            required
-            className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            placeholder="50"
+            value={formData.probability}
+            onChange={(e) => updateField("probability", Number(e.target.value))}
           />
-        </div>
-
-        <div className="space-y-2">
-          <label
-            htmlFor="closeDate"
-            className="text-sm font-medium text-foreground"
-          >
-            Close Date *
-          </label>
-          <input
-            type="date"
-            id="closeDate"
-            name="closeDate"
-            required
-            className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label
-            htmlFor="source"
-            className="text-sm font-medium text-foreground"
-          >
-            Source *
-          </label>
-          <select
-            id="source"
-            name="source"
-            required
-            className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option value="">Select source</option>
-            <option value="Direct">Direct</option>
-            <option value="Website">Website</option>
-            <option value="Referral">Referral</option>
-            <option value="Social Media">Social Media</option>
-            <option value="Email Campaign">Email Campaign</option>
-            <option value="Cold Call">Cold Call</option>
-          </select>
         </div>
       </div>
 
-      <div className="space-y-2">
-        <label
-          htmlFor="description"
-          className="text-sm font-medium text-foreground"
-        >
-          Description
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+            Stage
+          </label>
+          <Select
+            value={formData.stage}
+            onValueChange={(value) => updateField("stage", value)}
+            options={stageOptions}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+            Priority
+          </label>
+          <Select
+            value={formData.priority}
+            onValueChange={(value) => updateField("priority", value)}
+            options={priorityOptions}
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+          Expected Close Date
         </label>
-        <textarea
-          id="description"
-          name="description"
-          rows={3}
-          className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-          placeholder="Enter deal description..."
+        <Input
+          type="date"
+          value={formData.closeDate}
+          onChange={(e) => updateField("closeDate", e.target.value)}
         />
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3 pt-4">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          className="flex-1"
-        >
+      <div>
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+          Source
+        </label>
+        <Input
+          value={formData.source}
+          onChange={(e) => updateField("source", e.target.value)}
+          placeholder="e.g., Website, Referral, Cold Call"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+          Description
+        </label>
+        <textarea
+          value={formData.description}
+          onChange={(e) => updateField("description", e.target.value)}
+          placeholder="Add deal description..."
+          rows={3}
+          className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 dark:bg-slate-800 dark:text-slate-100 resize-none"
+        />
+      </div>
+
+      <div className="flex justify-end gap-3 pt-4">
+        <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" className="flex-1">
+        <Button type="submit" variant="default">
           Create Deal
         </Button>
       </div>
