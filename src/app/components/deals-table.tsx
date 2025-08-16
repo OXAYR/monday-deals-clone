@@ -1883,7 +1883,7 @@ function DealsTableCore() {
       {/* Modal for New Deal */}
       {showNewDealModal && (
         <div className="fixed inset-0 bg-black/40 dark:bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-card dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto border border-border animate-in fade-in-0 zoom-in-95 duration-200">
+          <div className="bg-card/90  rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto border border-border animate-in fade-in-0 zoom-in-95 duration-200">
             <div className="p-4 sm:p-6 border-b border-border">
               <h2 className="text-lg sm:text-xl font-bold text-foreground">
                 Create New Deal
