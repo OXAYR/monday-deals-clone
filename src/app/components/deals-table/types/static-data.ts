@@ -1,15 +1,7 @@
-/**
- * Static data for Deals Table
- * Contains default columns, sample deals, and select options for stages and priorities.
- *
- * @format
- */
+/** @format */
 
 import type { Deal, ColumnConfig } from "./index";
 
-/**
- * Default column configuration for the deals table.
- */
 export const DEFAULT_COLUMNS: ColumnConfig[] = [
   {
     key: "expand",

@@ -1,8 +1,7 @@
 /** @format */
 
-// components/molecules/SortStatusIndicator.tsx
 import React from "react";
-import { Button } from "../atoms/button"; // adjust path if needed
+import { Button } from "../atoms/button";
 
 interface SortStatusIndicatorProps {
   sortText: string;

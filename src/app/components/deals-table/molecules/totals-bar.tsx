@@ -1,6 +1,5 @@
 /** @format */
 
-// components/molecules/TotalsBar.tsx
 import React from "react";
 
 type Stat = {
@@ -8,8 +7,8 @@ type Stat = {
   value: number | string;
   prefix?: string; // e.g. "$"
   suffix?: string; // e.g. "%"
-  className?: string; // custom color styling (primary, emerald, red, etc.)
-  format?: "number" | "currency" | "percent"; // optional formatting
+  className?: string;
+  format?: "number" | "currency" | "percent";
 };
 
 interface TotalsBarProps {

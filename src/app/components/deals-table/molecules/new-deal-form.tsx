@@ -2,13 +2,6 @@
 
 "use client";
 
-/**
- * New Deal Creation Form Component
- *
- * A comprehensive form for creating new deals with validation
- * and proper UX patterns following atomic design principles
- */
-
 import type React from "react";
 import { useState } from "react";
 import { Button } from "../atoms/button";

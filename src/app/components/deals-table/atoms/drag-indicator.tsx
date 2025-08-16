@@ -1,6 +1,5 @@
 /** @format */
 
-// components/molecules/DragIndicator.tsx
 import React from "react";
 
 interface DragIndicatorProps {

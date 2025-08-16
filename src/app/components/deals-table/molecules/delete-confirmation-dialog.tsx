@@ -1,6 +1,5 @@
 /** @format */
 
-// components/molecules/DeleteConfirmDialog.tsx
 "use client";
 
 import { Button } from "../atoms/button";

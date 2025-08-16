@@ -1,9 +1,4 @@
-/**
- * Editable Cell Molecule
- * Handles inline editing for text and numeric values
- *
- * @format
- */
+/** @format */
 
 "use client";
 

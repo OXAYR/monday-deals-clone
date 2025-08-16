@@ -1,9 +1,4 @@
-/**
- * Probability Cell Molecule
- * Interactive probability slider with visual feedback
- *
- * @format
- */
+/** @format */
 
 "use client";
 

@@ -2,12 +2,6 @@
 
 "use client";
 
-/**
- * Select Molecule Component
- * Custom dropdown select with professional styling
- * Supports color indicators and search functionality
- */
-
 import type React from "react";
 import { useState, useRef, useEffect } from "react";
 import { ChevronDownIcon, CheckIcon } from "lucide-react";

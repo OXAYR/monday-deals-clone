@@ -1,10 +1,4 @@
-/**
- * Input Atom Component
- * Professional input field with dark mode support
- * Consistent styling across the application
- *
- * @format
- */
+/** @format */
 
 import type React from "react";
 

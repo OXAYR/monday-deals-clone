@@ -1,9 +1,4 @@
-/**
- * Progress Bar Atom
- * Visual progress indicator for probability values
- *
- * @format
- */
+/** @format */
 
 import { cn } from "../../../lib/utils";
 

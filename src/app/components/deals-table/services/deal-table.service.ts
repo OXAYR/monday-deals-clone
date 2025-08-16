@@ -1,8 +1,5 @@
-/**
- * Deals Table Service
- * Contains business logic and utilities for filtering, sorting, and totals
- * @format
- */
+/** @format */
+
 import type { Deal, ColumnConfig, SortConfig, FilterConfig } from "../types";
 
 export function filterDeals(deals: Deal[], filters: FilterConfig): Deal[] {

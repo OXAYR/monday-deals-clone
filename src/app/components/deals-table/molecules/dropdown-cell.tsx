@@ -1,9 +1,4 @@
-/**
- * Dropdown Cell Molecule
- * Handles dropdown selection for stages, priorities, etc.
- *
- * @format
- */
+/** @format */
 
 "use client";
 

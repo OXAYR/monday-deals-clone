@@ -1,6 +1,5 @@
 /** @format */
 
-// components/molecules/BulkActionsToolbar.tsx
 "use client";
 
 import { Button } from "../atoms/button";

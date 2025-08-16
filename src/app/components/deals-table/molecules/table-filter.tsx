@@ -1,9 +1,4 @@
-/**
- * Table Filters Molecule
- * Comprehensive filtering controls for the deals table
- *
- * @format
- */
+/** @format */
 
 "use client";
 

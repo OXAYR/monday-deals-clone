@@ -1,6 +1,5 @@
 /** @format */
 
-// components/HelpTooltip.tsx
 import React from "react";
 
 type Section = {

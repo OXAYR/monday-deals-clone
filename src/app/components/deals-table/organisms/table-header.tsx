@@ -1,9 +1,4 @@
-/**
- * Table Header Organism
- * Manages column headers, sorting, and column management
- *
- * @format
- */
+/** @format */
 
 "use client";
 

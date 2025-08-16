@@ -2,12 +2,6 @@
 
 "use client";
 
-/**
- * Button Atom Component
- * Reusable button with multiple variants and sizes
- * Follows atomic design principles with comprehensive styling
- */
-
 import type React from "react";
 
 interface ButtonProps {

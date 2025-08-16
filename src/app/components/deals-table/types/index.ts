@@ -1,9 +1,4 @@
-/**
- * Type definitions for the Deals Table system
- * Centralized type management following TypeScript best practices
- *
- * @format
- */
+/** @format */
 
 export interface Deal {
   id: string;

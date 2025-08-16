@@ -2,12 +2,6 @@
 
 "use client";
 
-/**
- * Checkbox Atom Component
- * Custom checkbox with indeterminate state support
- * Professional styling with dark mode compatibility
- */
-
 import type React from "react";
 import { useEffect, useRef } from "react";
 
