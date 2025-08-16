@@ -8,19 +8,9 @@ import {
   ChevronRightIcon,
   ArrowUpIcon,
   ArrowDownIcon,
-  CopyIcon,
-  TrashIcon,
-  SearchIcon,
-  PlusIcon,
-  EyeOffIcon,
-  ChevronLeftIcon,
-  SettingsIcon,
-  EditIcon,
-  DownloadIcon,
 } from "lucide-react";
 import { format } from "date-fns";
 
-// Import atomic design components
 import { Button } from "./deals-table/atoms/button";
 import { Checkbox } from "./deals-table/atoms/checkbox";
 
@@ -35,7 +25,6 @@ import { DealsTableTopBar } from "./deals-table/organisms/deals-table-top-bar";
 import { DealsTableBody } from "./deals-table/organisms/deals-table-body";
 import { ExpandedRowDetails } from "./deals-table/organisms/expanded-row-details";
 
-// Import types
 import type {
   Deal,
   ColumnConfig,
@@ -60,20 +49,13 @@ import { BulkActionsToolbar } from "./deals-table/organisms/bulk-action-bar";
 import { NoDealsFound } from "./deals-table/molecules/no-deal-found";
 import { DealsTableHeaderCell } from "./deals-table/organisms/deals-table-header";
 
-/**
- * Main Deals Table Component
- * Implements comprehensive CRM functionality with professional UX
- */
 function DealsTableCore() {
-  // Responsive utilities
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
   const [isDesktop, setIsDesktop] = useState(true);
 
-  // Hide drag-and-drop on mobile/tablet
   const showDragDrop = isDesktop;
 
-  // Update responsive state on window resize
   useEffect(() => {
     const updateResponsiveState = () => {
       const width = window.innerWidth;
@@ -137,7 +119,6 @@ function DealsTableCore() {
   const [headerFilters, setHeaderFilters] = useState<Record<string, any>>({});
   const [showHeaderFilters, setShowHeaderFilters] = useState(false);
 
-  // Responsive column configuration
   const getResponsiveColumns = useCallback(() => {
     if (isMobile) {
       return columns.filter(
@@ -161,7 +142,6 @@ function DealsTableCore() {
 
   const responsiveColumns = getResponsiveColumns();
 
-  // Load saved state from localStorage on component mount
   useEffect(() => {
     try {
       const savedState = localStorage.getItem("deals-table-state");
@@ -185,7 +165,6 @@ function DealsTableCore() {
     setContextMenu(null);
   }, []);
 
-  // Handle keyboard navigation for context menu
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (contextMenu) {
@@ -199,14 +178,11 @@ function DealsTableCore() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [contextMenu, closeContextMenu]);
 
-  // Unique values for filters
   const uniqueValues = useMemo(() => getUniqueValues(deals), [deals]);
 
-  // Enhanced filtering that combines toolbar filters and header filters
   const enhancedFilteredDeals = useMemo(() => {
     let filtered = filterDeals(deals, filters);
 
-    // Apply header filters
     Object.entries(headerFilters).forEach(([columnKey, filterValue]) => {
       if (filterValue && filterValue !== "") {
         filtered = filtered.filter((deal) => {
@@ -229,7 +205,6 @@ function DealsTableCore() {
     [enhancedFilteredDeals, sortConfigs]
   );
 
-  // Totals using service
   const totalsData = useMemo(
     () => calculateTotals(filteredAndSortedDeals),
     [filteredAndSortedDeals]
@@ -258,7 +233,6 @@ function DealsTableCore() {
     setShowNewDealModal(false);
   }, []);
 
-  // Handle activity addition
   const handleActivityAdd = useCallback((dealId: string, activity: any) => {
     setDeals((prev) =>
       prev.map((deal) =>
@@ -273,7 +247,6 @@ function DealsTableCore() {
     );
   }, []);
 
-  // Handle file upload
   const handleFileUpload = useCallback((dealId: string, file: File) => {
     const newFile = {
       id: Date.now(),

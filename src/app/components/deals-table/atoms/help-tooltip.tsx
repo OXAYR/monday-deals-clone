@@ -18,7 +18,7 @@ const HelpTooltip: React.FC<HelpTooltipProps> = ({
   position = "bottom-4 right-4",
 }) => {
   return (
-    <div className={`fixed ${position} z-30`}>
+    <div className={`fixed ${position} z-30 hidden md:block`}>
       <div className="bg-card border border-border rounded-lg shadow-lg p-3 text-xs text-muted-foreground">
         {sections.map((section, idx) => (
           <div key={idx} className="mb-2 last:mb-0">
