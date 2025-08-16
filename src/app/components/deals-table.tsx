@@ -468,7 +468,7 @@ function DealsTableCore() {
   }, []);
 
   const getSortIcon = useCallback(
-    (key: keyof Deal) => {
+    (key: string) => {
       const config = sortConfigs.find((c) => c.key === key);
       if (!config) return null;
 
@@ -482,7 +482,7 @@ function DealsTableCore() {
   );
 
   const getSortPriority = useCallback(
-    (key: keyof Deal) => {
+    (key: string) => {
       const config = sortConfigs.find((c) => c.key === key);
       return config && sortConfigs.length > 1 ? config.priority + 1 : null;
     },
@@ -490,7 +490,7 @@ function DealsTableCore() {
   );
 
   const getSortTooltip = useCallback(
-    (key: keyof Deal) => {
+    (key: string) => {
       const config = sortConfigs.find((c) => c.key === key);
       if (!config) return "Click to sort, Shift+Click to add to sort";
 
@@ -505,7 +505,7 @@ function DealsTableCore() {
   );
 
   const getSortButtonClass = useCallback(
-    (key: keyof Deal) => {
+    (key: string) => {
       const config = sortConfigs.find((c) => c.key === key);
       const baseClass =
         "flex items-center gap-1 hover:text-primary transition-colors group focus:outline-none focus:ring-2 focus:ring-primary rounded flex-1";
@@ -662,12 +662,12 @@ function DealsTableCore() {
               prevColumn.key !== "expand" &&
               prevColumn.key !== "actions"
             ) {
+              const deal = filteredAndSortedDeals[currentRowIndex];
+              const dealKey = prevColumn.key as keyof Deal;
               handleCellClick(
                 dealId,
                 prevColumn.key as string,
-                filteredAndSortedDeals[currentRowIndex][
-                  prevColumn.key as keyof Deal
-                ]
+                deal[dealKey]
               );
             }
           }
@@ -680,12 +680,12 @@ function DealsTableCore() {
               nextColumn.key !== "expand" &&
               nextColumn.key !== "actions"
             ) {
+              const deal = filteredAndSortedDeals[currentRowIndex];
+              const dealKey = nextColumn.key as keyof Deal;
               handleCellClick(
                 dealId,
                 nextColumn.key as string,
-                filteredAndSortedDeals[currentRowIndex][
-                  nextColumn.key as keyof Deal
-                ]
+                deal[dealKey]
               );
             }
           }
@@ -805,10 +805,11 @@ function DealsTableCore() {
             col.key !== "actions"
         );
         if (firstEditableColumn) {
+          const dealKey = firstEditableColumn.key as keyof Deal;
           handleCellClick(
             dealId,
             firstEditableColumn.key,
-            deal[firstEditableColumn.key as keyof Deal]
+            deal[dealKey]
           );
         }
       }
@@ -1189,6 +1190,10 @@ function DealsTableCore() {
             </div>
           );
         default:
+          const columnKey = column.key as string;
+          if (columnKey === "select" || columnKey === "expand" || columnKey === "actions") {
+            return null;
+          }
           return (
             <span className="text-sm text-foreground">
               {String(deal[column.key as keyof Deal] || "")}
@@ -1267,10 +1272,11 @@ function DealsTableCore() {
               column.key !== "expand" &&
               column.key !== "actions"
             ) {
+              const dealKey = column.key as keyof Deal;
               handleCellClick(
                 deal.id,
                 column.key as string,
-                deal[column.key as keyof Deal]
+                deal[dealKey]
               );
             }
           }
@@ -1669,13 +1675,13 @@ function DealsTableCore() {
                           />
                         ) : column.key === "expand" ? (
                           <span></span>
-                        ) : column.key === "actions" ? (
+                                                ) : column.key === "actions" ? (
                           <span>Actions</span>
                         ) : (
                           <div className="flex items-center gap-1 w-full">
                             <button
                               className={`${getSortButtonClass(
-                                column.key as keyof Deal
+                                column.key
                               )} ${
                                 draggingColumn === column.key
                                   ? "cursor-grabbing"
@@ -1686,20 +1692,20 @@ function DealsTableCore() {
                                 handleContextMenu(e, "header", column)
                               }
                               title={`${getSortTooltip(
-                                column.key as keyof Deal
+                                column.key
                               )}${draggingColumn ? "" : " - Drag to reorder"}`}
                             >
                               <span className="truncate text-base font-semibold">
                                 {column.label}
                               </span>
-                              {getSortIcon(column.key as keyof Deal)}
-                              {getSortPriority(column.key as keyof Deal) && (
+                              {getSortIcon(column.key)}
+                              {getSortPriority(column.key) && (
                                 <Badge
                                   variant="secondary"
                                   size="sm"
                                   className="ml-1 bg-primary/10 text-primary border-primary/20"
                                 >
-                                  {getSortPriority(column.key as keyof Deal)}
+                                  {getSortPriority(column.key)}
                                 </Badge>
                               )}
                             </button>

@@ -48,7 +48,7 @@ export const ThemeToggle: React.FC = () => {
       size="sm"
       onClick={toggleTheme}
       className="gap-2"
-      title={`Current theme: ${getLabel()}. Click to cycle through themes.`}
+      aria-label={`Current theme: ${getLabel()}. Click to cycle through themes.`}
     >
       {getIcon()}
       <span className="hidden sm:inline">{getLabel()}</span>

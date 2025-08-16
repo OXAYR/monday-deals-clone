@@ -40,7 +40,7 @@ export interface Deal {
 }
 
 export interface ColumnConfig {
-  key: keyof Deal | "select" | "expand";
+  key: keyof Deal | "select" | "expand" | "actions";
   label: string;
   visible: boolean;
   width: number;
