@@ -14,7 +14,6 @@ import {
   DownloadIcon,
   PlusIcon,
   XIcon,
-  UploadIcon,
 } from "lucide-react";
 
 interface ExpandedRowDetailsProps {
