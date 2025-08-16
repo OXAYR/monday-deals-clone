@@ -2,40 +2,29 @@
 
 import React from "react";
 import { TableRow } from "./table-row";
+import type { Deal, ColumnConfig } from "../types";
 
-function TableBodyRow({
-  deal,
-  columns,
-  selectedRows,
-  expandedRows,
-  rowDeleteConfirm,
-  onRowClick,
-  onDelete,
-  onDeleteConfirm,
-  renderCell,
-  ExpandedRowDetails,
-  rowIndex,
-  onExpand,
-  onSelect,
-}: any) {
-  return (
-    <TableRow
-      key={deal.id}
-      deal={deal}
-      columns={columns}
-      isSelected={selectedRows.has(deal.id)}
-      isExpanded={expandedRows.has(deal.id)}
-      onRowClick={(e: React.MouseEvent) => onRowClick(deal.id, rowIndex, e)}
-      onDelete={() => onDelete(deal.id)}
-      onDeleteConfirm={() => onDeleteConfirm(deal.id)}
-      deleteConfirmId={rowDeleteConfirm}
-      renderCell={renderCell}
-      expandedRowDetails={<ExpandedRowDetails deal={deal} />}
-      rowIndex={rowIndex}
-      onExpand={() => onExpand(deal.id)}
-      onSelect={() => onSelect(deal.id, rowIndex)}
-    />
-  );
+interface DealsTableBodyProps {
+  deals: Deal[];
+  columns: ColumnConfig[];
+  selectedRows: Set<string>;
+  expandedRows: Set<string>;
+  rowDeleteConfirm: string | null;
+  onRowClick: (dealId: string, index: number, event: React.MouseEvent) => void;
+  onContextMenu: (event: React.MouseEvent, deal: Deal) => void;
+  onDelete: (dealId: string) => void;
+  onDeleteConfirm: (dealId: string) => void;
+  renderCell: (deal: Deal, column: ColumnConfig) => React.ReactNode;
+  ExpandedRowDetails: React.ComponentType<{ deal: Deal }>;
+  onExpand: (dealId: string) => void;
+  onSelect: (dealId: string, rowIndex: number) => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+  onCellFocus: (rowIndex: number, colIndex: number) => void;
+  onRowDragStart: (e: React.DragEvent, deal: Deal) => void;
+  onRowDragOver: (e: React.DragEvent, deal: Deal) => void;
+  onRowDrop: (e: React.DragEvent, deal: Deal) => void;
+  onRowDragEnd: (e: React.DragEvent) => void;
+  getRowDragDropClasses: (dealId: string) => string;
 }
 
 export function DealsTableBody({
@@ -45,31 +34,46 @@ export function DealsTableBody({
   expandedRows,
   rowDeleteConfirm,
   onRowClick,
+  onContextMenu,
   onDelete,
   onDeleteConfirm,
   renderCell,
   ExpandedRowDetails,
   onExpand,
   onSelect,
-}: any) {
+  onKeyDown,
+  onCellFocus,
+  onRowDragStart,
+  onRowDragOver,
+  onRowDrop,
+  onRowDragEnd,
+  getRowDragDropClasses,
+}: DealsTableBodyProps) {
   return (
-    <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-800">
-      {deals.map((deal: any, rowIndex: number) => (
-        <TableBodyRow
+    <tbody className="bg-card divide-y divide-border" onKeyDown={onKeyDown}>
+      {deals.map((deal, rowIndex) => (
+        <TableRow
           key={deal.id}
           deal={deal}
           columns={columns}
-          selectedRows={selectedRows}
-          expandedRows={expandedRows}
-          rowDeleteConfirm={rowDeleteConfirm}
-          onRowClick={onRowClick}
+          isSelected={selectedRows.has(deal.id)}
+          isExpanded={expandedRows.has(deal.id)}
+          onRowClick={(e) => onRowClick(deal.id, rowIndex, e)}
+          onContextMenu={(e) => onContextMenu(e, deal)}
           onDelete={onDelete}
           onDeleteConfirm={onDeleteConfirm}
+          deleteConfirmId={rowDeleteConfirm}
           renderCell={renderCell}
           ExpandedRowDetails={ExpandedRowDetails}
+          onExpand={() => onExpand(deal.id)}
+          onSelect={(e) => onSelect(deal.id, rowIndex)}
           rowIndex={rowIndex}
-          onExpand={onExpand}
-          onSelect={onSelect}
+          onCellFocus={onCellFocus}
+          onRowDragStart={(e: React.DragEvent) => onRowDragStart(e, deal)}
+          onRowDragOver={(e: React.DragEvent) => onRowDragOver(e, deal)}
+          onRowDrop={(e: React.DragEvent) => onRowDrop(e, deal)}
+          onRowDragEnd={onRowDragEnd}
+          getRowDragDropClasses={getRowDragDropClasses}
         />
       ))}
     </tbody>

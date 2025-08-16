@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import {
   ChevronDownIcon,
   ChevronRightIcon,
@@ -12,6 +12,11 @@ import {
   TrashIcon,
   SearchIcon,
   PlusIcon,
+  EyeOffIcon,
+  ChevronLeftIcon,
+  SettingsIcon,
+  EditIcon,
+  DownloadIcon,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -28,7 +33,7 @@ import { TableFilters } from "./deals-table/molecules/table-filter";
 
 import { DealsTableTopBar } from "./deals-table/organisms/deals-table-top-bar";
 import { DealsTableBody } from "./deals-table/organisms/deals-table-body";
-import ExpandedRowDetails from "./deals-table/organisms/expanded-row-details";
+import { ExpandedRowDetails } from "./deals-table/organisms/expanded-row-details";
 
 // Import types
 import type {
@@ -71,18 +76,101 @@ function DealsTableCore() {
   const [showNewDealModal, setShowNewDealModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [rowDeleteConfirm, setRowDeleteConfirm] = useState<string | null>(null);
+  const [editingCell, setEditingCell] = useState<{
+    dealId: string;
+    field: keyof Deal;
+  } | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
+  const [contextMenu, setContextMenu] = useState<{
+    type: "header" | "row";
+    x: number;
+    y: number;
+    target: any;
+  } | null>(null);
+  const [focusedCell, setFocusedCell] = useState<{
+    rowIndex: number;
+    colIndex: number;
+  } | null>(null);
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  const [resizeStartX, setResizeStartX] = useState<number>(0);
+  const [resizeStartWidth, setResizeStartWidth] = useState<number>(0);
+  const [draggingColumn, setDraggingColumn] = useState<string | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+  const [dragStartPos, setDragStartPos] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [draggingRow, setDraggingRow] = useState<string | null>(null);
+  const [dragOverRow, setDragOverRow] = useState<string | null>(null);
+  const [headerFilters, setHeaderFilters] = useState<Record<string, any>>({});
+  const [showHeaderFilters, setShowHeaderFilters] = useState(false);
+
+  // Load saved state from localStorage on component mount
+  useEffect(() => {
+    try {
+      const savedState = localStorage.getItem("deals-table-state");
+      if (savedState) {
+        const parsed = JSON.parse(savedState);
+        if (parsed.sortConfigs) setSortConfigs(parsed.sortConfigs);
+        if (parsed.filters) setFilters(parsed.filters);
+        if (parsed.columns) setColumns(parsed.columns);
+        if (parsed.showFilters !== undefined)
+          setShowFilters(parsed.showFilters);
+        if (parsed.headerFilters) setHeaderFilters(parsed.headerFilters);
+        if (parsed.showHeaderFilters !== undefined)
+          setShowHeaderFilters(parsed.showHeaderFilters);
+      }
+    } catch (error) {
+      console.warn("Failed to load saved state:", error);
+    }
+  }, []);
+
+  const closeContextMenu = useCallback(() => {
+    setContextMenu(null);
+  }, []);
+
+  // Handle keyboard navigation for context menu
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (contextMenu) {
+        if (e.key === "Escape") {
+          closeContextMenu();
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [contextMenu, closeContextMenu]);
 
   // Unique values for filters
   const uniqueValues = useMemo(() => getUniqueValues(deals), [deals]);
 
-  // Filtering and sorting using service
-  const filteredDeals = useMemo(
-    () => filterDeals(deals, filters),
-    [deals, filters]
-  );
+  // Enhanced filtering that combines toolbar filters and header filters
+  const enhancedFilteredDeals = useMemo(() => {
+    let filtered = filterDeals(deals, filters);
+
+    // Apply header filters
+    Object.entries(headerFilters).forEach(([columnKey, filterValue]) => {
+      if (filterValue && filterValue !== "") {
+        filtered = filtered.filter((deal) => {
+          const cellValue = deal[columnKey as keyof Deal];
+          if (typeof cellValue === "string") {
+            return cellValue.toLowerCase().includes(filterValue.toLowerCase());
+          }
+          return String(cellValue)
+            .toLowerCase()
+            .includes(filterValue.toLowerCase());
+        });
+      }
+    });
+
+    return filtered;
+  }, [deals, filters, headerFilters]);
+
   const filteredAndSortedDeals = useMemo(
-    () => sortDeals(filteredDeals, sortConfigs),
-    [filteredDeals, sortConfigs]
+    () => sortDeals(enhancedFilteredDeals, sortConfigs),
+    [enhancedFilteredDeals, sortConfigs]
   );
 
   // Totals using service
@@ -242,11 +330,47 @@ function DealsTableCore() {
     [filteredAndSortedDeals]
   );
 
+  // Keyboard shortcuts for selection
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "a" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        handleSelectAll(true);
+      } else if (e.key === "Escape") {
+        setSelectedRows(new Set());
+        setLastSelectedIndex(null);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [handleSelectAll]);
+
   // Selection state calculations
   const isAllSelected =
     filteredAndSortedDeals.length > 0 &&
     filteredAndSortedDeals.every((deal) => selectedRows.has(deal.id));
   const isIndeterminate = selectedRows.size > 0 && !isAllSelected;
+
+  // Calculate totals for selected rows
+  const selectedTotals = useMemo(() => {
+    const selectedDeals = deals.filter((deal) => selectedRows.has(deal.id));
+    return {
+      count: selectedDeals.length,
+      totalValue: selectedDeals.reduce(
+        (sum, deal) =>
+          sum + Number.parseFloat(deal.amount.replace(/[$,]/g, "")),
+        0
+      ),
+      avgProbability:
+        selectedDeals.length > 0
+          ? selectedDeals.reduce((sum, deal) => sum + deal.probability, 0) /
+            selectedDeals.length
+          : 0,
+      stages: [...new Set(selectedDeals.map((deal) => deal.stage))],
+      priorities: [...new Set(selectedDeals.map((deal) => deal.priority))],
+    };
+  }, [deals, selectedRows]);
 
   const toggleRowExpansion = useCallback((dealId: string) => {
     setExpandedRows((prev) => {
@@ -266,9 +390,9 @@ function DealsTableCore() {
       if (!config) return null;
 
       return config.direction === "asc" ? (
-        <ArrowUpIcon className="h-3 w-3 ml-1 text-slate-600 dark:text-slate-400" />
+        <ArrowUpIcon className="h-3 w-3 ml-1 text-primary transition-colors" />
       ) : (
-        <ArrowDownIcon className="h-3 w-3 ml-1 text-slate-600 dark:text-slate-400" />
+        <ArrowDownIcon className="h-3 w-3 ml-1 text-primary transition-colors" />
       );
     },
     [sortConfigs]
@@ -282,6 +406,36 @@ function DealsTableCore() {
     [sortConfigs]
   );
 
+  const getSortTooltip = useCallback(
+    (key: keyof Deal) => {
+      const config = sortConfigs.find((c) => c.key === key);
+      if (!config) return "Click to sort, Shift+Click to add to sort";
+
+      const direction = config.direction === "asc" ? "ascending" : "descending";
+      const priority =
+        sortConfigs.length > 1
+          ? ` (${config.priority + 1} of ${sortConfigs.length})`
+          : "";
+      return `Sorted ${direction}${priority}. Click to change, Shift+Click to add another sort`;
+    },
+    [sortConfigs]
+  );
+
+  const getSortButtonClass = useCallback(
+    (key: keyof Deal) => {
+      const config = sortConfigs.find((c) => c.key === key);
+      const baseClass =
+        "flex items-center gap-1 hover:text-primary transition-colors group focus:outline-none focus:ring-2 focus:ring-primary rounded flex-1";
+
+      if (!config) {
+        return `${baseClass} text-muted-foreground hover:text-primary`;
+      }
+
+      return `${baseClass} text-primary font-medium`;
+    },
+    [sortConfigs]
+  );
+
   const updateDealField = useCallback(
     (dealId: string, field: keyof Deal, value: any) => {
       setDeals((prev) =>
@@ -291,6 +445,293 @@ function DealsTableCore() {
       );
     },
     []
+  );
+
+  // Enhanced bulk actions
+  const handleBulkAction = useCallback(
+    (
+      action:
+        | "delete"
+        | "duplicate"
+        | "changeStage"
+        | "changePriority"
+        | "export",
+      value?: string
+    ) => {
+      switch (action) {
+        case "delete":
+          setShowDeleteConfirm(true);
+          break;
+        case "duplicate":
+          handleBulkDuplicate();
+          break;
+        case "changeStage":
+          if (value) {
+            selectedRows.forEach((dealId) => {
+              updateDealField(dealId, "stage", value);
+            });
+            setSelectedRows(new Set());
+          }
+          break;
+        case "changePriority":
+          if (value) {
+            selectedRows.forEach((dealId) => {
+              updateDealField(dealId, "priority", value);
+            });
+            setSelectedRows(new Set());
+          }
+          break;
+        case "export":
+          // Export selected deals
+          const selectedDeals = deals.filter((deal) =>
+            selectedRows.has(deal.id)
+          );
+          const csvContent = [
+            [
+              "Name",
+              "Company",
+              "Stage",
+              "Priority",
+              "Amount",
+              "Probability",
+              "Close Date",
+              "Owner",
+            ],
+            ...selectedDeals.map((deal) => [
+              deal.name,
+              deal.company,
+              deal.stage,
+              deal.priority,
+              deal.amount,
+              deal.probability,
+              deal.closeDate,
+              deal.owner.name,
+            ]),
+          ]
+            .map((row) => row.join(","))
+            .join("\n");
+
+          const blob = new Blob([csvContent], { type: "text/csv" });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `deals-export-${
+            new Date().toISOString().split("T")[0]
+          }.csv`;
+          a.click();
+          window.URL.revokeObjectURL(url);
+          break;
+      }
+    },
+    [selectedRows, deals, updateDealField, handleBulkDuplicate]
+  );
+
+  const handleCellClick = useCallback(
+    (dealId: string, field: string, currentValue: any) => {
+      // Don't allow editing for certain fields
+      if (field === "select" || field === "expand" || field === "actions") {
+        return;
+      }
+      setEditingCell({ dealId, field: field as keyof Deal });
+      setEditValue(String(currentValue || ""));
+    },
+    []
+  );
+
+  const handleCellEdit = useCallback(
+    (dealId: string, field: keyof Deal, value: any) => {
+      updateDealField(dealId, field, value);
+      setEditingCell(null);
+      setEditValue("");
+    },
+    [updateDealField]
+  );
+
+  const handleCellCancel = useCallback(() => {
+    setEditingCell(null);
+    setEditValue("");
+  }, []);
+
+  const handleCellKeyDown = useCallback(
+    (e: React.KeyboardEvent, dealId: string, field: keyof Deal) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleCellEdit(dealId, field, editValue);
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        handleCellCancel();
+      } else if (e.key === "Tab") {
+        e.preventDefault();
+        // Move to next editable cell
+        const currentRowIndex = filteredAndSortedDeals.findIndex(
+          (deal) => deal.id === dealId
+        );
+        const currentColIndex = visibleColumnsWithActions.findIndex(
+          (col) => col.key === field
+        );
+
+        if (e.shiftKey) {
+          // Move to previous cell
+          if (currentColIndex > 0) {
+            const prevColumn = visibleColumnsWithActions[currentColIndex - 1];
+            if (
+              prevColumn.key !== "select" &&
+              prevColumn.key !== "expand" &&
+              prevColumn.key !== "actions"
+            ) {
+              handleCellClick(
+                dealId,
+                prevColumn.key as string,
+                filteredAndSortedDeals[currentRowIndex][
+                  prevColumn.key as keyof Deal
+                ]
+              );
+            }
+          }
+        } else {
+          // Move to next cell
+          if (currentColIndex < visibleColumnsWithActions.length - 1) {
+            const nextColumn = visibleColumnsWithActions[currentColIndex + 1];
+            if (
+              nextColumn.key !== "select" &&
+              nextColumn.key !== "expand" &&
+              nextColumn.key !== "actions"
+            ) {
+              handleCellClick(
+                dealId,
+                nextColumn.key as string,
+                filteredAndSortedDeals[currentRowIndex][
+                  nextColumn.key as keyof Deal
+                ]
+              );
+            }
+          }
+        }
+      }
+    },
+    [
+      editValue,
+      handleCellEdit,
+      handleCellCancel,
+      filteredAndSortedDeals,
+      visibleColumnsWithActions,
+      handleCellClick,
+    ]
+  );
+
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent, type: "header" | "row", target: any) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Calculate position to ensure menu stays within viewport
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const menuWidth = 200; // Approximate menu width
+      const menuHeight = type === "header" ? 120 : 80; // Approximate menu height
+
+      let x = e.clientX;
+      let y = e.clientY;
+
+      // Adjust if menu would go off-screen
+      if (x + menuWidth > viewportWidth) {
+        x = viewportWidth - menuWidth - 10;
+      }
+      if (y + menuHeight > viewportHeight) {
+        y = viewportHeight - menuHeight - 10;
+      }
+
+      setContextMenu({
+        type,
+        x,
+        y,
+        target,
+      });
+    },
+    []
+  );
+
+  const handleColumnHide = useCallback(
+    (columnKey: string) => {
+      toggleColumnVisibility(columnKey);
+      closeContextMenu();
+    },
+    [toggleColumnVisibility, closeContextMenu]
+  );
+
+  const handleColumnMove = useCallback(
+    (columnKey: string, direction: "left" | "right") => {
+      setColumns((prev) => {
+        const currentIndex = prev.findIndex((col) => col.key === columnKey);
+        if (currentIndex === -1) return prev;
+
+        const newColumns = [...prev];
+        const targetIndex =
+          direction === "left" ? currentIndex - 1 : currentIndex + 1;
+
+        if (targetIndex >= 0 && targetIndex < newColumns.length) {
+          const [movedColumn] = newColumns.splice(currentIndex, 1);
+          newColumns.splice(targetIndex, 0, movedColumn);
+        }
+
+        return newColumns;
+      });
+      closeContextMenu();
+    },
+    [closeContextMenu]
+  );
+
+  const handleRowDuplicate = useCallback(
+    (dealId: string) => {
+      const dealToDuplicate = deals.find((d) => d.id === dealId);
+      if (dealToDuplicate) {
+        const duplicatedDeal = {
+          ...dealToDuplicate,
+          id: `${dealToDuplicate.id}-copy-${Date.now()}`,
+          name: `${dealToDuplicate.name} (Copy)`,
+        };
+        setDeals((prev) => [duplicatedDeal, ...prev]);
+      }
+      closeContextMenu();
+    },
+    [deals, closeContextMenu]
+  );
+
+  const handleRowDelete = useCallback(
+    (dealId: string) => {
+      setDeals((prev) => prev.filter((d) => d.id !== dealId));
+      setSelectedRows((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(dealId);
+        return newSet;
+      });
+      closeContextMenu();
+    },
+    [closeContextMenu]
+  );
+
+  const handleRowEdit = useCallback(
+    (dealId: string) => {
+      // Find the first editable field and start editing
+      const deal = deals.find((d) => d.id === dealId);
+      if (deal) {
+        const firstEditableColumn = visibleColumnsWithActions.find(
+          (col) =>
+            col.key !== "select" &&
+            col.key !== "expand" &&
+            col.key !== "actions"
+        );
+        if (firstEditableColumn) {
+          handleCellClick(
+            dealId,
+            firstEditableColumn.key,
+            deal[firstEditableColumn.key as keyof Deal]
+          );
+        }
+      }
+      closeContextMenu();
+    },
+    [deals, visibleColumnsWithActions, handleCellClick, closeContextMenu]
   );
 
   const stageOptions = [
@@ -309,26 +750,81 @@ function DealsTableCore() {
     { value: "Critical", label: "Critical", color: "#dc2626" },
   ];
 
+  const getStageColor = useCallback(
+    (stage: string) => {
+      const option = stageOptions.find((opt) => opt.value === stage);
+      return option?.color || "#64748b";
+    },
+    [stageOptions]
+  );
+
+  const getPriorityColor = useCallback(
+    (priority: string) => {
+      const option = priorityOptions.find((opt) => opt.value === priority);
+      return option?.color || "#f59e0b";
+    },
+    [priorityOptions]
+  );
+
+  const getStageTooltip = useCallback((stage: string) => {
+    const stageInfo = {
+      New: "Deal is newly created and needs qualification",
+      Qualified: "Deal has been qualified and is ready for proposal",
+      Proposal: "Proposal has been sent to the prospect",
+      Negotiation: "Currently negotiating terms and conditions",
+      Won: "Deal has been successfully closed",
+      Lost: "Deal was lost to competition or other factors",
+    };
+    return stageInfo[stage as keyof typeof stageInfo] || "Unknown stage";
+  }, []);
+
+  const getPriorityTooltip = useCallback((priority: string) => {
+    const priorityInfo = {
+      Low: "Low priority - can be addressed later",
+      Medium: "Medium priority - standard attention required",
+      High: "High priority - needs immediate attention",
+      Critical: "Critical priority - urgent action required",
+    };
+    return (
+      priorityInfo[priority as keyof typeof priorityInfo] || "Unknown priority"
+    );
+  }, []);
+
   const renderCell = useCallback(
     (deal: Deal, column: ColumnConfig) => {
+      const isEditing =
+        editingCell?.dealId === deal.id && editingCell?.field === column.key;
+
       switch (column.key) {
         case "expand":
           return (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleRowExpansion(deal.id);
-              }}
+            <div
+              title={
+                expandedRows.has(deal.id)
+                  ? "Collapse details"
+                  : "Expand details"
+              }
             >
-              {expandedRows.has(deal.id) ? (
-                <ChevronDownIcon className="h-4 w-4" />
-              ) : (
-                <ChevronRightIcon className="h-4 w-4" />
-              )}
-            </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`h-8 w-8 transition-all duration-200 hover:bg-muted/50 ${
+                  expandedRows.has(deal.id)
+                    ? "text-primary"
+                    : "text-muted-foreground"
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleRowExpansion(deal.id);
+                }}
+              >
+                {expandedRows.has(deal.id) ? (
+                  <ChevronDownIcon className="h-4 w-4 transition-transform duration-200" />
+                ) : (
+                  <ChevronRightIcon className="h-4 w-4 transition-transform duration-200" />
+                )}
+              </Button>
+            </div>
           );
         case "select":
           return (
@@ -349,24 +845,75 @@ function DealsTableCore() {
           );
         case "name":
           return (
-            <div className="font-medium text-foreground truncate max-w-[200px]">
-              {deal.name}
+            <div
+              className={`font-medium text-foreground truncate max-w-[200px] cursor-pointer hover:bg-muted/50 px-2 py-1 rounded transition-colors ${
+                isEditing ? "ring-2 ring-primary bg-background" : ""
+              }`}
+              onClick={() => handleCellClick(deal.id, "name", deal.name)}
+              title={
+                isEditing
+                  ? "Press Enter to save, Escape to cancel"
+                  : "Click to edit"
+              }
+            >
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={(e) => handleCellKeyDown(e, deal.id, "name")}
+                  onBlur={() => handleCellEdit(deal.id, "name", editValue)}
+                  className="w-full bg-background border-none outline-none text-sm font-medium"
+                  autoFocus
+                  placeholder="Enter deal name..."
+                />
+              ) : (
+                deal.name
+              )}
             </div>
           );
         case "stage":
           return (
-            <Select
-              value={deal.stage}
-              onValueChange={(value) =>
-                updateDealField(deal.id, "stage", value)
-              }
-              options={stageOptions}
-              className="min-w-[120px]"
-            />
+            <div className="min-w-[120px]">
+              {isEditing ? (
+                <div className="ring-2 ring-primary bg-background rounded p-1">
+                  <Select
+                    value={editValue}
+                    onValueChange={(value) =>
+                      handleCellEdit(deal.id, "stage", value)
+                    }
+                    options={stageOptions}
+                    className="w-full"
+                  />
+                </div>
+              ) : (
+                <div
+                  className={`cursor-pointer hover:bg-muted/50 px-2 py-1 rounded transition-colors ${
+                    isEditing ? "ring-2 ring-primary bg-background" : ""
+                  }`}
+                  onClick={() => handleCellClick(deal.id, "stage", deal.stage)}
+                  title={`${getStageTooltip(deal.stage)} - Click to edit`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: getStageColor(deal.stage) }}
+                    />
+                    <span className="text-sm font-medium">{deal.stage}</span>
+                  </div>
+                </div>
+              )}
+            </div>
           );
         case "owner":
           return (
-            <div className="flex items-center gap-2 min-w-0">
+            <div
+              className={`flex items-center gap-2 min-w-0 cursor-pointer hover:bg-muted/50 px-2 py-1 rounded transition-colors ${
+                isEditing ? "ring-2 ring-primary bg-background" : ""
+              }`}
+              onClick={() => handleCellClick(deal.id, "owner", deal.owner)}
+              title="Click to edit owner"
+            >
               <div className="h-8 w-8 rounded-full bg-gradient-to-br from-slate-400 to-slate-600 flex items-center justify-center text-sm font-medium text-white flex-shrink-0">
                 {deal.owner.initials}
               </div>
@@ -377,51 +924,170 @@ function DealsTableCore() {
           );
         case "company":
           return (
-            <div className="text-sm text-slate-700 dark:text-slate-300 truncate max-w-[150px]">
-              {deal.company}
+            <div
+              className={`text-sm text-foreground truncate max-w-[150px] cursor-pointer hover:bg-muted/50 px-2 py-1 rounded transition-colors ${
+                isEditing ? "ring-2 ring-primary bg-background" : ""
+              }`}
+              onClick={() => handleCellClick(deal.id, "company", deal.company)}
+              title={
+                isEditing
+                  ? "Press Enter to save, Escape to cancel"
+                  : "Click to edit"
+              }
+            >
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={(e) => handleCellKeyDown(e, deal.id, "company")}
+                  onBlur={() => handleCellEdit(deal.id, "company", editValue)}
+                  className="w-full bg-background border-none outline-none text-sm"
+                  autoFocus
+                  placeholder="Enter company name..."
+                />
+              ) : (
+                deal.company
+              )}
             </div>
           );
         case "amount":
           return (
-            <div className="text-sm font-semibold text-foreground text-right">
-              {deal.amount}
+            <div
+              className={`text-sm font-semibold text-foreground text-right cursor-pointer hover:bg-muted/50 px-2 py-1 rounded transition-colors ${
+                isEditing ? "ring-2 ring-primary bg-background" : ""
+              }`}
+              onClick={() => handleCellClick(deal.id, "amount", deal.amount)}
+              title={
+                isEditing
+                  ? "Press Enter to save, Escape to cancel"
+                  : "Click to edit"
+              }
+            >
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={(e) => handleCellKeyDown(e, deal.id, "amount")}
+                  onBlur={() => handleCellEdit(deal.id, "amount", editValue)}
+                  className="w-full bg-background border-none outline-none text-sm font-semibold text-right"
+                  autoFocus
+                  placeholder="$0"
+                />
+              ) : (
+                deal.amount
+              )}
             </div>
           );
         case "probability":
           return (
             <div className="flex items-center gap-2 min-w-[120px]">
-              <div className="flex-1 bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+              <div className="flex-1 bg-muted rounded-full h-2">
                 <div
-                  className="bg-gradient-to-r from-slate-500 to-slate-700 dark:from-slate-400 dark:to-slate-600 h-2 rounded-full transition-all duration-300"
+                  className="bg-primary h-2 rounded-full transition-all duration-300"
                   style={{ width: `${deal.probability}%` }}
                 />
               </div>
-              <span className="text-xs text-slate-600 dark:text-slate-400 w-8 text-right">
+              <span className="text-xs text-muted-foreground w-8 text-right">
                 {deal.probability}%
               </span>
             </div>
           );
         case "closeDate":
           return (
-            <div className="text-sm text-slate-700 dark:text-slate-300">
-              {format(new Date(deal.closeDate), "MMM d")}
+            <div
+              className={`text-sm text-foreground cursor-pointer hover:bg-muted/50 px-2 py-1 rounded transition-colors ${
+                isEditing ? "ring-2 ring-primary bg-background" : ""
+              }`}
+              onClick={() =>
+                handleCellClick(deal.id, "closeDate", deal.closeDate)
+              }
+              title={
+                isEditing
+                  ? "Press Enter to save, Escape to cancel"
+                  : "Click to edit"
+              }
+            >
+              {isEditing ? (
+                <input
+                  type="date"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={(e) => handleCellKeyDown(e, deal.id, "closeDate")}
+                  onBlur={() => handleCellEdit(deal.id, "closeDate", editValue)}
+                  className="w-full bg-background border-none outline-none text-sm"
+                  autoFocus
+                />
+              ) : (
+                format(new Date(deal.closeDate), "MMM d")
+              )}
             </div>
           );
         case "priority":
           return (
-            <Select
-              value={deal.priority}
-              onValueChange={(value) =>
-                updateDealField(deal.id, "priority", value)
-              }
-              options={priorityOptions}
-              className="min-w-[100px]"
-            />
+            <div className="min-w-[100px]">
+              {isEditing ? (
+                <div className="ring-2 ring-primary bg-background rounded p-1">
+                  <Select
+                    value={editValue}
+                    onValueChange={(value) =>
+                      handleCellEdit(deal.id, "priority", value)
+                    }
+                    options={priorityOptions}
+                    className="w-full"
+                  />
+                </div>
+              ) : (
+                <div
+                  className={`cursor-pointer hover:bg-muted/50 px-2 py-1 rounded transition-colors ${
+                    isEditing ? "ring-2 ring-primary bg-background" : ""
+                  }`}
+                  onClick={() =>
+                    handleCellClick(deal.id, "priority", deal.priority)
+                  }
+                  title={`${getPriorityTooltip(deal.priority)} - Click to edit`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{
+                        backgroundColor: getPriorityColor(deal.priority),
+                      }}
+                    />
+                    <span className="text-sm font-medium">{deal.priority}</span>
+                  </div>
+                </div>
+              )}
+            </div>
           );
         case "source":
           return (
-            <div className="text-sm text-slate-700 dark:text-slate-300 truncate">
-              {deal.source}
+            <div
+              className={`text-sm text-foreground truncate cursor-pointer hover:bg-muted/50 px-2 py-1 rounded transition-colors ${
+                isEditing ? "ring-2 ring-primary bg-background" : ""
+              }`}
+              onClick={() => handleCellClick(deal.id, "source", deal.source)}
+              title={
+                isEditing
+                  ? "Press Enter to save, Escape to cancel"
+                  : "Click to edit"
+              }
+            >
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={(e) => handleCellKeyDown(e, deal.id, "source")}
+                  onBlur={() => handleCellEdit(deal.id, "source", editValue)}
+                  className="w-full bg-background border-none outline-none text-sm"
+                  autoFocus
+                  placeholder="Enter source..."
+                />
+              ) : (
+                deal.source
+              )}
             </div>
           );
         case "tags":
@@ -441,14 +1107,390 @@ function DealsTableCore() {
           );
         default:
           return (
-            <span className="text-sm text-slate-700 dark:text-slate-300">
+            <span className="text-sm text-foreground">
               {String(deal[column.key as keyof Deal] || "")}
             </span>
           );
       }
     },
-    [selectedRows, expandedRows, updateDealField, toggleRowExpansion]
+    [
+      selectedRows,
+      expandedRows,
+      updateDealField,
+      toggleRowExpansion,
+      editingCell,
+      editValue,
+      handleCellClick,
+      handleCellEdit,
+      handleCellCancel,
+      handleCellKeyDown,
+      getStageColor,
+      getPriorityColor,
+      getStageTooltip,
+      getPriorityTooltip,
+    ]
   );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (!focusedCell) return;
+
+      const { rowIndex, colIndex } = focusedCell;
+      const totalRows = filteredAndSortedDeals.length;
+      const totalCols = visibleColumnsWithActions.length;
+
+      switch (e.key) {
+        case "ArrowUp":
+          e.preventDefault();
+          if (rowIndex > 0) {
+            setFocusedCell({ rowIndex: rowIndex - 1, colIndex });
+          }
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          if (rowIndex < totalRows - 1) {
+            setFocusedCell({ rowIndex: rowIndex + 1, colIndex });
+          }
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          if (colIndex > 0) {
+            setFocusedCell({ rowIndex, colIndex: colIndex - 1 });
+          }
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          if (colIndex < totalCols - 1) {
+            setFocusedCell({ rowIndex, colIndex: colIndex + 1 });
+          }
+          break;
+        case "Enter":
+          e.preventDefault();
+          if (focusedCell) {
+            const deal = filteredAndSortedDeals[rowIndex];
+            const column = visibleColumnsWithActions[colIndex];
+            if (
+              deal &&
+              column &&
+              column.key !== "select" &&
+              column.key !== "expand" &&
+              column.key !== "actions"
+            ) {
+              handleCellClick(
+                deal.id,
+                column.key as string,
+                deal[column.key as keyof Deal]
+              );
+            }
+          }
+          break;
+        case "Escape":
+          e.preventDefault();
+          if (editingCell) {
+            handleCellCancel();
+          }
+          break;
+      }
+    },
+    [
+      focusedCell,
+      filteredAndSortedDeals,
+      visibleColumnsWithActions,
+      editingCell,
+      handleCellClick,
+      handleCellCancel,
+    ]
+  );
+
+  const handleCellFocus = useCallback((rowIndex: number, colIndex: number) => {
+    setFocusedCell({ rowIndex, colIndex });
+  }, []);
+
+  const handleResizeStart = useCallback(
+    (e: React.MouseEvent, columnKey: string) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setResizingColumn(columnKey);
+      setResizeStartX(e.clientX);
+      const column = columns.find((col) => col.key === columnKey);
+      setResizeStartWidth(column?.width || 150);
+    },
+    [columns]
+  );
+
+  const handleResizeMove = useCallback(
+    (e: MouseEvent) => {
+      if (!resizingColumn) return;
+
+      const deltaX = e.clientX - resizeStartX;
+      const newWidth = Math.max(100, resizeStartWidth + deltaX); // Minimum width of 100px
+
+      setColumns((prev) =>
+        prev.map((col) =>
+          col.key === resizingColumn ? { ...col, width: newWidth } : col
+        )
+      );
+    },
+    [resizingColumn, resizeStartX, resizeStartWidth]
+  );
+
+  const handleResizeEnd = useCallback(() => {
+    setResizingColumn(null);
+  }, []);
+
+  useEffect(() => {
+    if (resizingColumn) {
+      document.addEventListener("mousemove", handleResizeMove);
+      document.addEventListener("mouseup", handleResizeEnd);
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+
+      return () => {
+        document.removeEventListener("mousemove", handleResizeMove);
+        document.removeEventListener("mouseup", handleResizeEnd);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      };
+    }
+  }, [resizingColumn, handleResizeMove, handleResizeEnd]);
+
+  const handleColumnDragStart = useCallback(
+    (e: React.DragEvent, columnKey: string) => {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", columnKey);
+      setDraggingColumn(columnKey);
+    },
+    []
+  );
+
+  const handleColumnDragOver = useCallback(
+    (e: React.DragEvent, columnKey: string) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      setDragOverColumn(columnKey);
+    },
+    []
+  );
+
+  const handleColumnDrop = useCallback(
+    (e: React.DragEvent, targetColumnKey: string) => {
+      e.preventDefault();
+      const draggedColumnKey = e.dataTransfer.getData("text/plain");
+
+      if (draggedColumnKey && draggedColumnKey !== targetColumnKey) {
+        setColumns((prev) => {
+          const draggedIndex = prev.findIndex(
+            (col) => col.key === draggedColumnKey
+          );
+          const targetIndex = prev.findIndex(
+            (col) => col.key === targetColumnKey
+          );
+
+          if (draggedIndex === -1 || targetIndex === -1) return prev;
+
+          const newColumns = [...prev];
+          const [draggedColumn] = newColumns.splice(draggedIndex, 1);
+          newColumns.splice(targetIndex, 0, draggedColumn);
+
+          return newColumns;
+        });
+      }
+
+      setDraggingColumn(null);
+      setDragOverColumn(null);
+    },
+    []
+  );
+
+  const handleColumnDragEnd = useCallback(() => {
+    setDraggingColumn(null);
+    setDragOverColumn(null);
+  }, []);
+
+  // Row drag and drop functionality
+  const handleRowDragStart = useCallback(
+    (e: React.DragEvent, dealId: string) => {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", dealId);
+      setDraggingRow(dealId);
+
+      // Add visual feedback
+      const target = e.currentTarget as HTMLElement;
+      target.style.opacity = "0.5";
+      target.style.transform = "rotate(1deg)";
+    },
+    []
+  );
+
+  const handleRowDragOver = useCallback(
+    (e: React.DragEvent, dealId: string) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      setDragOverRow(dealId);
+    },
+    []
+  );
+
+  const handleRowDrop = useCallback(
+    (e: React.DragEvent, targetDealId: string) => {
+      e.preventDefault();
+      const draggedDealId = e.dataTransfer.getData("text/plain");
+
+      if (draggedDealId && draggedDealId !== targetDealId) {
+        setDeals((prev) => {
+          const draggedIndex = prev.findIndex(
+            (deal) => deal.id === draggedDealId
+          );
+          const targetIndex = prev.findIndex(
+            (deal) => deal.id === targetDealId
+          );
+
+          if (draggedIndex === -1 || targetIndex === -1) return prev;
+
+          const newDeals = [...prev];
+          const [draggedDeal] = newDeals.splice(draggedIndex, 1);
+          newDeals.splice(targetIndex, 0, draggedDeal);
+
+          return newDeals;
+        });
+      }
+
+      setDraggingRow(null);
+      setDragOverRow(null);
+    },
+    []
+  );
+
+  const handleRowDragEnd = useCallback((e: React.DragEvent) => {
+    // Reset visual feedback
+    const target = e.currentTarget as HTMLElement;
+    target.style.opacity = "";
+    target.style.transform = "";
+
+    setDraggingRow(null);
+    setDragOverRow(null);
+  }, []);
+
+  // Handle click events to prevent conflicts with drag
+  const handleColumnClick = useCallback(
+    (e: React.MouseEvent, columnKey: string) => {
+      // Handle sort click
+      handleSort(columnKey as keyof Deal, e);
+    },
+    [handleSort]
+  );
+
+  // Get drag and drop visual classes for columns
+  const getDragDropClasses = useCallback(
+    (columnKey: string) => {
+      let classes = "transition-all duration-200";
+
+      if (draggingColumn === columnKey) {
+        classes += " opacity-50 scale-95";
+      } else if (dragOverColumn === columnKey) {
+        classes += " bg-primary/10 border-l-2 border-l-primary";
+      }
+
+      return classes;
+    },
+    [draggingColumn, dragOverColumn]
+  );
+
+  // Get drag and drop visual classes for rows
+  const getRowDragDropClasses = useCallback(
+    (dealId: string) => {
+      let classes = "transition-all duration-200";
+
+      if (draggingRow === dealId) {
+        classes += " opacity-50 scale-98";
+      } else if (dragOverRow === dealId) {
+        classes += " bg-primary/10 border-l-4 border-l-primary";
+      }
+
+      return classes;
+    },
+    [draggingRow, dragOverRow]
+  );
+
+  // Get resize handle classes
+  const getResizeHandleClasses = useCallback(
+    (columnKey: string) => {
+      let classes =
+        "w-1 h-6 bg-border hover:bg-primary cursor-col-resize transition-all duration-200";
+
+      if (resizingColumn === columnKey) {
+        classes += " bg-primary w-2";
+      }
+
+      return classes;
+    },
+    [resizingColumn]
+  );
+
+  const handleHeaderFilterChange = useCallback(
+    (columnKey: string, value: any) => {
+      setHeaderFilters((prev) => ({
+        ...prev,
+        [columnKey]: value,
+      }));
+    },
+    []
+  );
+
+  const clearHeaderFilters = useCallback(() => {
+    setHeaderFilters({});
+  }, []);
+
+  const getHeaderFilterValue = useCallback(
+    (columnKey: string) => {
+      return headerFilters[columnKey] || "";
+    },
+    [headerFilters]
+  );
+
+  const hasActiveHeaderFilters = useCallback(() => {
+    return Object.values(headerFilters).some((value) => value && value !== "");
+  }, [headerFilters]);
+
+  const getActiveFilterCount = useCallback(() => {
+    return Object.values(headerFilters).filter((value) => value && value !== "")
+      .length;
+  }, [headerFilters]);
+
+  const clearAllSorts = useCallback(() => {
+    setSortConfigs([]);
+  }, []);
+
+  const getSortIndicatorText = useCallback(() => {
+    if (sortConfigs.length === 0) return "No sorting applied";
+    if (sortConfigs.length === 1) {
+      const config = sortConfigs[0];
+      return `Sorted by ${config.key} (${config.direction})`;
+    }
+    return `Sorted by ${sortConfigs.length} columns`;
+  }, [sortConfigs]);
+
+  const clearSavedState = useCallback(() => {
+    try {
+      localStorage.removeItem("deals-table-state");
+      // Reset to defaults
+      setSortConfigs([]);
+      setFilters({
+        stages: [],
+        priorities: [],
+        owners: [],
+        sources: [],
+        amountRange: { min: 0, max: 200000 },
+        searchTerm: "",
+      });
+      setColumns(DEFAULT_COLUMNS);
+      setShowFilters(false);
+      setHeaderFilters({});
+      setShowHeaderFilters(false);
+    } catch (error) {
+      console.warn("Failed to clear saved state:", error);
+    }
+  }, []);
 
   return (
     <div className="w-full min-h-screen  flex flex-col transition-colors duration-200">
@@ -461,25 +1503,41 @@ function DealsTableCore() {
         uniqueValues={uniqueValues}
         showFilters={showFilters}
         setShowFilters={setShowFilters}
+        showHeaderFilters={showHeaderFilters}
+        setShowHeaderFilters={setShowHeaderFilters}
+        headerFilters={headerFilters}
+        clearHeaderFilters={clearHeaderFilters}
         ThemeToggle={ThemeToggle}
         TableFilters={TableFilters}
       />
       {/* Table Section */}
       <div className="flex-1 w-full pt-6">
-        <div className="shadow-xl overflow-hidden bg-card border border-border">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
-              <thead className="bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 sticky top-0 z-10 border-b border-border">
-                <tr>
-                  {visibleColumnsWithActions.map((column) => (
-                    <th
-                      key={column.key}
-                      className="text-left p-4 font-semibold text-slate-700 dark:text-slate-300 border-r border-border last:border-r-0 whitespace-nowrap select-none"
-                      style={{
-                        width: `${column.width}px`,
-                        minWidth: `${column.minWidth}px`,
-                      }}
-                    >
+        <div className="relative shadow-xl overflow-x-auto bg-card border border-border">
+          <table className="w-full min-w-[900px] text-sm">
+            <thead className="sticky top-0 z-20 bg-background border-b border-border">
+              <tr>
+                {visibleColumnsWithActions.map((column, colIndex) => (
+                  <th
+                    key={column.key}
+                    className={`text-left p-4 font-semibold text-foreground border-r border-border last:border-r-0 whitespace-nowrap select-none bg-background ${getDragDropClasses(
+                      column.key
+                    )}`}
+                    style={{
+                      width: `${column.width}px`,
+                      minWidth: `${column.minWidth}px`,
+                    }}
+                    onClick={() => handleCellFocus(0, colIndex)}
+                    draggable={
+                      column.key !== "select" &&
+                      column.key !== "expand" &&
+                      column.key !== "actions"
+                    }
+                    onDragStart={(e) => handleColumnDragStart(e, column.key)}
+                    onDragOver={(e) => handleColumnDragOver(e, column.key)}
+                    onDrop={(e) => handleColumnDrop(e, column.key)}
+                    onDragEnd={handleColumnDragEnd}
+                  >
+                    <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-2">
                         {column.key === "select" ? (
                           <Checkbox
@@ -492,144 +1550,199 @@ function DealsTableCore() {
                         ) : column.key === "actions" ? (
                           <span>Actions</span>
                         ) : (
-                          <button
-                            className="flex items-center gap-1 hover:text-slate-900 dark:hover:text-slate-100 transition-colors group focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-                            onClick={(e) =>
-                              handleSort(column.key as keyof Deal, e)
-                            }
-                          >
-                            <span className="truncate text-base font-semibold">
-                              {column.label}
-                            </span>
-                            {getSortIcon(column.key as keyof Deal)}
-                            {getSortPriority(column.key as keyof Deal) && (
-                              <Badge
-                                variant="secondary"
-                                size="sm"
-                                className="ml-1"
-                              >
-                                {getSortPriority(column.key as keyof Deal)}
-                              </Badge>
-                            )}
-                          </button>
+                          <div className="flex items-center gap-1 w-full">
+                            <button
+                              className={`${getSortButtonClass(
+                                column.key as keyof Deal
+                              )} ${
+                                draggingColumn === column.key
+                                  ? "cursor-grabbing"
+                                  : "cursor-grab"
+                              }`}
+                              onClick={(e) => handleColumnClick(e, column.key)}
+                              onContextMenu={(e) =>
+                                handleContextMenu(e, "header", column)
+                              }
+                              title={`${getSortTooltip(
+                                column.key as keyof Deal
+                              )}${draggingColumn ? "" : " - Drag to reorder"}`}
+                            >
+                              <span className="truncate text-base font-semibold">
+                                {column.label}
+                              </span>
+                              {getSortIcon(column.key as keyof Deal)}
+                              {getSortPriority(column.key as keyof Deal) && (
+                                <Badge
+                                  variant="secondary"
+                                  size="sm"
+                                  className="ml-1 bg-primary/10 text-primary border-primary/20"
+                                >
+                                  {getSortPriority(column.key as keyof Deal)}
+                                </Badge>
+                              )}
+                            </button>
+                            {/* Resize handle */}
+                            <div
+                              className={getResizeHandleClasses(column.key)}
+                              onMouseDown={(e) =>
+                                handleResizeStart(e, column.key)
+                              }
+                              title="Drag to resize column"
+                            />
+                          </div>
                         )}
                       </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <DealsTableBody
-                deals={filteredAndSortedDeals}
-                columns={visibleColumns}
-                selectedRows={selectedRows}
-                expandedRows={expandedRows}
-                rowDeleteConfirm={rowDeleteConfirm}
-                onRowClick={handleRowSelection}
-                onDelete={(dealId: string) => {
-                  setDeals((prev) => prev.filter((d) => d.id !== dealId));
-                  setRowDeleteConfirm(null);
-                  setSelectedRows((prev) => {
-                    const newSet = new Set(prev);
-                    newSet.delete(dealId);
-                    return newSet;
-                  });
-                }}
-                onDeleteConfirm={(dealId: string) =>
-                  setRowDeleteConfirm((prev) =>
-                    prev === dealId ? null : dealId
-                  )
-                }
-                renderCell={renderCell}
-                ExpandedRowDetails={ExpandedRowDetails}
-                onExpand={(dealId: string) => toggleRowExpansion(dealId)}
-                onSelect={(dealId: string, rowIndex: number) =>
-                  handleRowSelection(dealId, rowIndex, {
-                    ctrlKey: false,
-                    metaKey: false,
-                    shiftKey: false,
-                  } as any)
-                }
-              />
-            </table>
-            {filteredAndSortedDeals.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-12 px-4">
-                <div className="text-slate-400 dark:text-slate-600 mb-4">
-                  <SearchIcon className="h-12 w-12" />
-                </div>
-                <h3 className="text-lg font-medium text-foreground mb-2">
-                  No deals found
-                </h3>
-                <p className="text-sm text-slate-600 dark:text-slate-400 text-center max-w-md">
-                  {filters.searchTerm ||
-                  filters.stages.length > 0 ||
-                  filters.priorities.length > 0
-                    ? "Try adjusting your search or filters to find what you're looking for."
-                    : "Get started by creating your first deal."}
-                </p>
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="mt-4 shadow-md"
-                  onClick={() => setShowNewDealModal(true)}
-                >
-                  <PlusIcon className="h-4 w-4 mr-2" />
-                  Create Deal
-                </Button>
+                      {/* Header Filter Row */}
+                      {showHeaderFilters &&
+                        column.key !== "select" &&
+                        column.key !== "expand" &&
+                        column.key !== "actions" && (
+                          <div className="flex items-center gap-1">
+                            <div className="relative flex-1">
+                              <input
+                                type="text"
+                                placeholder={`Filter ${column.label}...`}
+                                value={getHeaderFilterValue(column.key)}
+                                onChange={(e) =>
+                                  handleHeaderFilterChange(
+                                    column.key,
+                                    e.target.value
+                                  )
+                                }
+                                className="w-full px-2 py-1 text-xs bg-background border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+                              />
+                              {getHeaderFilterValue(column.key) && (
+                                <button
+                                  onClick={() =>
+                                    handleHeaderFilterChange(column.key, "")
+                                  }
+                                  className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                  title="Clear filter"
+                                >
+                                  ×
+                                </button>
+                              )}
+                            </div>
+                            {getHeaderFilterValue(column.key) && (
+                              <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+                            )}
+                          </div>
+                        )}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <DealsTableBody
+              deals={filteredAndSortedDeals}
+              columns={visibleColumns}
+              selectedRows={selectedRows}
+              expandedRows={expandedRows}
+              rowDeleteConfirm={rowDeleteConfirm}
+              onRowClick={handleRowSelection}
+              onContextMenu={(e: React.MouseEvent, deal: Deal) =>
+                handleContextMenu(e, "row", deal)
+              }
+              onDelete={(dealId: string) => {
+                setDeals((prev) => prev.filter((d) => d.id !== dealId));
+                setRowDeleteConfirm(null);
+                setSelectedRows((prev) => {
+                  const newSet = new Set(prev);
+                  newSet.delete(dealId);
+                  return newSet;
+                });
+              }}
+              onDeleteConfirm={(dealId: string) =>
+                setRowDeleteConfirm((prev) => (prev === dealId ? null : dealId))
+              }
+              renderCell={renderCell}
+              ExpandedRowDetails={ExpandedRowDetails}
+              onExpand={(dealId: string) => toggleRowExpansion(dealId)}
+              onSelect={(dealId: string, rowIndex: number) =>
+                handleRowSelection(dealId, rowIndex, {
+                  ctrlKey: false,
+                  metaKey: false,
+                  shiftKey: false,
+                } as any)
+              }
+              onKeyDown={handleKeyDown}
+              onCellFocus={handleCellFocus}
+              onRowDragStart={(e, deal) => handleRowDragStart(e, deal.id)}
+              onRowDragOver={(e, deal) => handleRowDragOver(e, deal.id)}
+              onRowDrop={(e, deal) => handleRowDrop(e, deal.id)}
+              onRowDragEnd={handleRowDragEnd}
+              getRowDragDropClasses={getRowDragDropClasses}
+            />
+          </table>
+          {filteredAndSortedDeals.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 px-4">
+              <div className="text-muted-foreground mb-4">
+                <SearchIcon className="h-12 w-12" />
               </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Totals Bar Section */}
-      <div className="bg-background/90 dark:bg-slate-900/90 border-t border-border px-4 py-6 sm:px-8 shadow-inner">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-foreground drop-shadow-sm">
-              {totalsData.totalDeals}
+              <h3 className="text-lg font-medium text-foreground mb-2">
+                No deals found
+              </h3>
+              <p className="text-sm text-muted-foreground text-center max-w-md">
+                {filters.searchTerm ||
+                filters.stages.length > 0 ||
+                filters.priorities.length > 0
+                  ? "Try adjusting your search or filters to find what you're looking for."
+                  : "Get started by creating your first deal."}
+              </p>
+              <Button
+                variant="default"
+                size="sm"
+                className="mt-4 shadow-md"
+                onClick={() => setShowNewDealModal(true)}
+              >
+                <PlusIcon className="h-4 w-4 mr-2" />
+                Create Deal
+              </Button>
             </div>
-            <div className="text-sm text-slate-600 dark:text-slate-400">
-              Total Deals
-            </div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 drop-shadow-sm">
-              ${totalsData.totalValue.toLocaleString()}
-            </div>
-            <div className="text-sm text-slate-600 dark:text-slate-400">
-              Total Value
-            </div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-primary dark:text-primary-400 drop-shadow-sm">
-              ${Math.round(totalsData.weightedValue).toLocaleString()}
-            </div>
-            <div className="text-sm text-slate-600 dark:text-slate-400">
-              Weighted Value
-            </div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-primary dark:text-primary-400 drop-shadow-sm">
-              {Math.round(totalsData.avgProbability)}%
-            </div>
-            <div className="text-sm text-slate-600 dark:text-slate-400">
-              Avg Probability
-            </div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 drop-shadow-sm">
-              {totalsData.wonDeals}
-            </div>
-            <div className="text-sm text-slate-600 dark:text-slate-400">
-              Won
-            </div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-red-600 dark:text-red-400 drop-shadow-sm">
-              {totalsData.lostDeals}
-            </div>
-            <div className="text-sm text-slate-600 dark:text-slate-400">
-              Lost
+          )}
+          {/* Pinned Totals Bar */}
+          <div className="sticky bottom-0 left-0 right-0 z-30 bg-background/95 border-t border-border px-4 py-4 sm:px-8 shadow-inner">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-foreground drop-shadow-sm">
+                  {totalsData.totalDeals}
+                </div>
+                <div className="text-sm text-muted-foreground">Total Deals</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary drop-shadow-sm">
+                  ${totalsData.totalValue.toLocaleString()}
+                </div>
+                <div className="text-sm text-muted-foreground">Total Value</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary drop-shadow-sm">
+                  ${Math.round(totalsData.weightedValue).toLocaleString()}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Weighted Value
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary drop-shadow-sm">
+                  {Math.round(totalsData.avgProbability)}%
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Avg Probability
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 drop-shadow-sm">
+                  {totalsData.wonDeals}
+                </div>
+                <div className="text-sm text-muted-foreground">Won</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-red-600 dark:text-red-400 drop-shadow-sm">
+                  {totalsData.lostDeals}
+                </div>
+                <div className="text-sm text-muted-foreground">Lost</div>
+              </div>
             </div>
           </div>
         </div>
@@ -680,7 +1793,7 @@ function DealsTableCore() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleBulkDuplicate}
+                onClick={() => handleBulkAction("duplicate")}
                 className="hover:bg-slate-200 dark:hover:bg-slate-700"
               >
                 <CopyIcon className="h-4 w-4 mr-2" />
@@ -689,22 +1802,36 @@ function DealsTableCore() {
               <Select
                 placeholder="Change Stage"
                 options={stageOptions}
-                onValueChange={(value) => {
-                  selectedRows.forEach((dealId) => {
-                    updateDealField(dealId, "stage", value);
-                  });
-                  setSelectedRows(new Set());
-                }}
+                onValueChange={(value) =>
+                  handleBulkAction("changeStage", value)
+                }
+                className="w-32"
+              />
+              <Select
+                placeholder="Change Priority"
+                options={priorityOptions}
+                onValueChange={(value) =>
+                  handleBulkAction("changePriority", value)
+                }
                 className="w-32"
               />
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={() => setShowDeleteConfirm(true)}
+                onClick={() => handleBulkAction("delete")}
                 className="hover:bg-red-600 hover:text-white transition-colors"
               >
                 <TrashIcon className="h-4 w-4 mr-2" />
                 Delete
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBulkAction("export")}
+                className="hover:bg-slate-200 dark:hover:bg-slate-700"
+              >
+                <DownloadIcon className="h-4 w-4 mr-2" />
+                Export CSV
               </Button>
             </div>
           </div>
@@ -745,6 +1872,254 @@ function DealsTableCore() {
           </div>
         </div>
       )}
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          className="fixed z-50 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[200px] animate-in fade-in-0 zoom-in-95 duration-100"
+          style={{
+            left: contextMenu.x,
+            top: contextMenu.y,
+          }}
+          role="menu"
+          tabIndex={-1}
+        >
+          {contextMenu.type === "header" ? (
+            <>
+              <div className="px-3 py-2 border-b border-border">
+                <h4 className="text-sm font-semibold text-foreground">
+                  {contextMenu.target.label} Column
+                </h4>
+              </div>
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors focus:bg-muted focus:outline-none"
+                onClick={() => handleColumnHide(contextMenu.target.key)}
+                role="menuitem"
+              >
+                <span className="flex items-center gap-2">
+                  <EyeOffIcon className="h-4 w-4" />
+                  Hide Column
+                </span>
+              </button>
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors focus:bg-muted focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => handleColumnMove(contextMenu.target.key, "left")}
+                disabled={
+                  columns.findIndex(
+                    (col) => col.key === contextMenu.target.key
+                  ) === 0
+                }
+                role="menuitem"
+              >
+                <span className="flex items-center gap-2">
+                  <ChevronLeftIcon className="h-4 w-4" />
+                  Move Left
+                </span>
+              </button>
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors focus:bg-muted focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() =>
+                  handleColumnMove(contextMenu.target.key, "right")
+                }
+                disabled={
+                  columns.findIndex(
+                    (col) => col.key === contextMenu.target.key
+                  ) ===
+                  columns.length - 1
+                }
+                role="menuitem"
+              >
+                <span className="flex items-center gap-2">
+                  <ChevronRightIcon className="h-4 w-4" />
+                  Move Right
+                </span>
+              </button>
+              <div className="border-t border-border my-1" />
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors focus:bg-muted focus:outline-none"
+                onClick={() => {
+                  // TODO: Implement column settings
+                  closeContextMenu();
+                }}
+                role="menuitem"
+              >
+                <span className="flex items-center gap-2">
+                  <SettingsIcon className="h-4 w-4" />
+                  Column Settings
+                </span>
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="px-3 py-2 border-b border-border">
+                <h4 className="text-sm font-semibold text-foreground">
+                  {contextMenu.target.name}
+                </h4>
+                <p className="text-xs text-muted-foreground">
+                  {contextMenu.target.company} • {contextMenu.target.amount}
+                </p>
+              </div>
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors focus:bg-muted focus:outline-none"
+                onClick={() => handleRowEdit(contextMenu.target.id)}
+                role="menuitem"
+              >
+                <span className="flex items-center gap-2">
+                  <EditIcon className="h-4 w-4" />
+                  Edit Deal
+                </span>
+              </button>
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors focus:bg-muted focus:outline-none"
+                onClick={() => handleRowDuplicate(contextMenu.target.id)}
+                role="menuitem"
+              >
+                <span className="flex items-center gap-2">
+                  <CopyIcon className="h-4 w-4" />
+                  Duplicate Deal
+                </span>
+              </button>
+              <div className="border-t border-border my-1" />
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors focus:bg-destructive/10 focus:outline-none"
+                onClick={() => handleRowDelete(contextMenu.target.id)}
+                role="menuitem"
+              >
+                <span className="flex items-center gap-2">
+                  <TrashIcon className="h-4 w-4" />
+                  Delete Deal
+                </span>
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Click outside to close context menu */}
+      {contextMenu && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={closeContextMenu}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Sort Status Indicator */}
+      {sortConfigs.length > 0 && (
+        <div className="fixed bottom-4 left-4 z-30">
+          <div className="bg-card border border-border rounded-lg shadow-lg p-3 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-foreground">Sort:</span>
+              <span className="text-muted-foreground">
+                {getSortIndicatorText()}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearAllSorts}
+                className="h-6 px-2 text-xs hover:bg-muted"
+              >
+                Clear
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header Filter Status Indicator */}
+      {hasActiveHeaderFilters() && (
+        <div
+          className="fixed bottom-4 left-4 z-30"
+          style={{ top: sortConfigs.length > 0 ? "calc(4rem + 60px)" : "1rem" }}
+        >
+          <div className="bg-card border border-border rounded-lg shadow-lg p-3 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-foreground">Filters:</span>
+              <span className="text-muted-foreground">
+                {getActiveFilterCount()} active header filter
+                {getActiveFilterCount() !== 1 ? "s" : ""}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearHeaderFilters}
+                className="h-6 px-2 text-xs hover:bg-muted"
+              >
+                Clear All
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Drag and Drop Visual Indicator */}
+      {draggingColumn && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50">
+          <div className="bg-primary/90 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium animate-in fade-in-0 slide-in-from-top-2 duration-200">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+              Dragging column:{" "}
+              {columns.find((col) => col.key === draggingColumn)?.label}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Row Drag Visual Indicator */}
+      {draggingRow && (
+        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-50">
+          <div className="bg-primary/90 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium animate-in fade-in-0 slide-in-from-top-2 duration-200">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+              Dragging deal:{" "}
+              {deals.find((deal) => deal.id === draggingRow)?.name}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Resize Visual Indicator */}
+      {resizingColumn && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50">
+          <div className="bg-primary/90 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium animate-in fade-in-0 slide-in-from-top-2 duration-200">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+              Resizing:{" "}
+              {columns.find((col) => col.key === resizingColumn)?.label}(
+              {columns.find((col) => col.key === resizingColumn)?.width}px)
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Keyboard navigation help tooltip */}
+      <div className="fixed bottom-4 right-4 z-30">
+        <div className="bg-card border border-border rounded-lg shadow-lg p-3 text-xs text-muted-foreground">
+          <div className="font-semibold mb-1">Keyboard Shortcuts:</div>
+          <div>↑↓←→ Navigate cells</div>
+          <div>Enter Edit cell</div>
+          <div>Esc Cancel edit</div>
+          <div>Ctrl/Cmd+Click Multi-select</div>
+          <div>Shift+Click Range select</div>
+          <div>Ctrl/Cmd+A Select All</div>
+          <div>Escape Deselect All</div>
+          <div className="mt-2 font-semibold">Table Features:</div>
+          <div>• Drag column headers to reorder</div>
+          <div>• Drag table rows to reorder deals</div>
+          <div>• Drag resize handles to resize</div>
+          <div>• Right-click for context menus</div>
+          <div>• Header filters for quick search</div>
+          <div>• Shift+Click for multi-column sort</div>
+          <div>• Ctrl+F to focus header filters</div>
+          <div>• Ctrl+A to select all deals</div>
+          <div>• Escape to deselect all</div>
+          <div className="mt-2 font-semibold">Drag & Drop:</div>
+          <div>• Grab column headers to reorder</div>
+          <div>• Grab table rows to reorder deals</div>
+          <div>• Drag resize handles to adjust width</div>
+          <div>• Visual feedback shows drop zones</div>
+        </div>
+      </div>
     </div>
   );
 }

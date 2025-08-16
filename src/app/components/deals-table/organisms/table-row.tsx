@@ -3,6 +3,30 @@
 import React from "react";
 import { Button } from "../atoms/button";
 import { TrashIcon } from "lucide-react";
+import type { Deal, ColumnConfig } from "../types";
+
+interface TableRowProps {
+  deal: Deal;
+  columns: ColumnConfig[];
+  isSelected: boolean;
+  isExpanded: boolean;
+  onRowClick: (e: React.MouseEvent) => void;
+  onContextMenu: (e: React.MouseEvent) => void;
+  onDelete: (dealId: string) => void;
+  onDeleteConfirm: (dealId: string) => void;
+  deleteConfirmId: string | null;
+  renderCell: (deal: Deal, column: ColumnConfig) => React.ReactNode;
+  ExpandedRowDetails: React.ComponentType<{ deal: Deal }>;
+  onExpand: () => void;
+  onSelect: (e: React.MouseEvent) => void;
+  rowIndex: number;
+  onCellFocus: (rowIndex: number, colIndex: number) => void;
+  onRowDragStart: (e: React.DragEvent) => void;
+  onRowDragOver: (e: React.DragEvent) => void;
+  onRowDrop: (e: React.DragEvent) => void;
+  onRowDragEnd: (e: React.DragEvent) => void;
+  getRowDragDropClasses: (dealId: string) => string;
+}
 
 export function TableRow({
   deal,
@@ -10,87 +34,84 @@ export function TableRow({
   isSelected,
   isExpanded,
   onRowClick,
+  onContextMenu,
   onDelete,
   onDeleteConfirm,
   deleteConfirmId,
   renderCell,
-  expandedRowDetails,
-  rowIndex,
+  ExpandedRowDetails,
   onExpand,
   onSelect,
-}: {
-  deal: any;
-  columns: any[];
-  isSelected: boolean;
-  isExpanded: boolean;
-  onRowClick: (e: React.MouseEvent) => void;
-  onDelete: () => void;
-  onDeleteConfirm: () => void;
-  deleteConfirmId: string | null;
-  renderCell: (deal: any, column: any) => React.ReactNode;
-  expandedRowDetails: React.ReactNode;
-  rowIndex: number;
-  onExpand?: () => void;
-  onSelect?: () => void;
-}) {
+  rowIndex,
+  onCellFocus,
+  onRowDragStart,
+  onRowDragOver,
+  onRowDrop,
+  onRowDragEnd,
+  getRowDragDropClasses,
+}: TableRowProps) {
   return (
     <>
       <tr
-        className={`
-          hover:bg-slate-50 dark:hover:bg-slate-800/50 
-          transition-all duration-150 cursor-pointer
-          ${
-            isSelected
-              ? "bg-slate-100 dark:bg-slate-800 border-l-4 border-l-blue-500 dark:border-l-blue-400 shadow-md"
-              : ""
-          }
-        `}
+        className={`${
+          isSelected ? "bg-accent/10 border-l-accent" : ""
+        } hover:bg-muted/30 transition-colors cursor-pointer ${getRowDragDropClasses(
+          deal.id
+        )}`}
         onClick={onRowClick}
+        onContextMenu={onContextMenu}
+        draggable
+        onDragStart={onRowDragStart}
+        onDragOver={onRowDragOver}
+        onDrop={onRowDrop}
+        onDragEnd={onRowDragEnd}
       >
-        {columns.map((column) => (
+        {columns.map((column, colIndex) => (
           <td
             key={`${deal.id}-${column.key}`}
-            className="p-4 border-r border-slate-100 dark:border-slate-800 last:border-r-0 whitespace-nowrap"
+            className="p-4 border-r border-border last:border-r-0 whitespace-nowrap"
             style={{
               width: `${column.width}px`,
               minWidth: `${column.minWidth}px`,
             }}
+            onClick={() => onCellFocus(rowIndex, colIndex)}
+            tabIndex={0}
           >
             {renderCell(deal, column)}
           </td>
         ))}
-        {/* Actions column */}
         <td
           key={`${deal.id}-actions`}
-          className="p-4 border-r border-slate-100 dark:border-slate-800 last:border-r-0 whitespace-nowrap text-center"
+          className="p-4 border-r border-border last:border-r-0 whitespace-nowrap text-center"
           style={{ width: "80px", minWidth: "60px" }}
           onClick={(e) => e.stopPropagation()}
+          tabIndex={0}
         >
           {deleteConfirmId === deal.id ? (
-            <span className="inline-flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onDeleteConfirm}
-                className="px-2"
-              >
-                Cancel
-              </Button>
+            <div className="flex items-center gap-2 justify-center">
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={onDelete}
-                className="px-2"
+                onClick={() => onDelete(deal.id)}
+                className="h-6 px-2 text-xs"
               >
-                Delete
+                Confirm
               </Button>
-            </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onDeleteConfirm(deal.id)}
+                className="h-6 px-2 text-xs"
+              >
+                Cancel
+              </Button>
+            </div>
           ) : (
             <Button
               variant="ghost"
               size="icon"
-              onClick={onDeleteConfirm}
-              className="text-red-500 hover:bg-red-100 dark:hover:bg-red-900"
+              onClick={() => onDeleteConfirm(deal.id)}
+              className="text-foreground hover:bg-muted"
             >
               <TrashIcon className="h-4 w-4" />
             </Button>
@@ -99,11 +120,8 @@ export function TableRow({
       </tr>
       {isExpanded && (
         <tr>
-          <td
-            colSpan={columns.length + 1}
-            className="p-0 bg-slate-50 dark:bg-slate-900/70"
-          >
-            {expandedRowDetails}
+          <td colSpan={columns.length + 1} className="p-0">
+            <ExpandedRowDetails deal={deal} />
           </td>
         </tr>
       )}
