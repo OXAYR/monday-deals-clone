@@ -5,7 +5,7 @@
 import type React from "react";
 import { MoonIcon, SunIcon, MonitorIcon } from "lucide-react";
 import { useTheme } from "../hooks/use-theme";
-import { Button } from "./button";
+import { Button } from "../atoms/button";
 
 export const ThemeToggle: React.FC = () => {
   const { theme, setTheme, resolvedTheme } = useTheme();

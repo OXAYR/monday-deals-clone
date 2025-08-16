@@ -15,7 +15,7 @@ import { Button } from "./deals-table/atoms/button";
 import { Checkbox } from "./deals-table/atoms/checkbox";
 
 import { Badge } from "./deals-table/atoms/badge";
-import { ThemeToggle } from "./deals-table/atoms/theme-toggle";
+import { ThemeToggle } from "./deals-table/molecules/theme-toggle";
 import { Select } from "./deals-table/molecules/select";
 import { ThemeProvider } from "./deals-table/hooks/use-theme";
 import { NewDealForm } from "./deals-table/molecules/new-deal-form";
